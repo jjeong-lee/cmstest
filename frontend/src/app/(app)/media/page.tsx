@@ -1,7 +1,5 @@
-import { listAssets } from "@/features/media/api/media";
-import { AssetMasonryGrid } from "@/features/media/components/asset-masonry-grid";
+import { redirect } from "next/navigation";
 
-export default async function MediaPage() {
-  const assets = await listAssets();
-  return <AssetMasonryGrid assets={assets} />;
+export default function LegacyMediaPage() {
+  redirect("/attachments");
 }

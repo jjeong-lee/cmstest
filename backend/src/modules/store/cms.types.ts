@@ -1,37 +1,37 @@
-export type Role = "admin" | "editor" | "reviewer" | "publisher";
-export type UserStatus = "active" | "invited" | "disabled";
-export type EntryStatus =
-  | "draft"
-  | "in_review"
-  | "approved"
-  | "scheduled"
-  | "published"
-  | "archived"
-  | "rejected";
-export type ReviewStatus = "open" | "approved" | "rejected" | "cancelled";
-export type AssetStatus = "processing" | "ready" | "failed" | "archived";
-export type PublishMode = "immediate" | "scheduled";
-export type PublicationStatus = "pending" | "processed" | "failed" | "cancelled";
+export type Role = "ADMIN" | "REVIEWER" | "OPERATOR" | "USER";
+export type UserStatus = "ACTIVE" | "INVITED" | "DISABLED";
+export type FolderStatus = "ACTIVE" | "INACTIVE" | "DELETED";
+export type DocumentStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "UNPUBLISHED" | "DELETED";
+export type VisibilityScope = "PUBLIC" | "INTERNAL";
+export type AttachmentStatus = "UPLOADING" | "ACTIVE" | "DELETED" | "ORPHANED" | "RESTORE_PENDING";
+export type PdfImportStatus = "NOT_REQUESTED" | "PENDING" | "SUCCEEDED" | "UNSUPPORTED" | "FAILED";
+export type BackupRunType = "SCHEDULED" | "MANUAL" | "PRE_RESTORE";
+export type BackupStatus = "PENDING" | "RUNNING" | "SUCCEEDED" | "PARTIAL_FAILURE" | "FAILED";
+export type ValidationStatus = "PENDING" | "PASSED" | "FAILED";
+export type DeploymentStatus = "CREATED" | "APPROVED" | "DEPLOYED" | "ROLLED_BACK" | "FAILED";
+export type LicenseStatus = "APPROVED" | "CONDITIONAL" | "RESTRICTED" | "PROHIBITED";
+export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type ChangeRequestStatus = "DRAFT" | "ANALYSIS_REQUIRED" | "READY_FOR_APPROVAL" | "APPROVED" | "IMPLEMENTED";
 export type AuditAction =
-  | "create"
-  | "update"
-  | "submit"
-  | "approve"
-  | "reject"
-  | "schedule"
-  | "publish"
-  | "unpublish"
-  | "upload"
-  | "archive";
+  | "CREATE"
+  | "UPDATE"
+  | "DELETE"
+  | "PUBLISH"
+  | "UNPUBLISH"
+  | "APPROVE"
+  | "SUBMIT_REVIEW"
+  | "DOWNLOAD"
+  | "BACKUP"
+  | "RESTORE"
+  | "DEPLOY"
+  | "IMPORT";
 
 export interface Workspace {
   id: string;
   name: string;
   code: string;
-  defaultLocale: string;
   timezone: string;
-  createdAt: string;
-  updatedAt: string;
+  locale: string;
 }
 
 export interface User {
@@ -41,180 +41,274 @@ export interface User {
   displayName: string;
   role: Role;
   status: UserStatus;
-  lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
+  lastLoginAt?: string;
 }
 
 export interface SessionUser {
   id: string;
+  workspaceId: string;
   email: string;
   displayName: string;
   role: Role;
-  workspaceId: string;
   token: string;
 }
 
-export interface ContentType {
+export interface Folder {
   id: string;
-  code: "article" | "landing_page" | "promo_banner";
+  parentId: string | null;
   name: string;
-  description: string;
-  fieldSchema: {
-    bodyHint: string;
-    requiredFields: string[];
-    ctaLabel?: string;
-  };
-  isActive: boolean;
-}
-
-export interface Tag {
-  id: string;
-  workspaceId: string;
-  label: string;
   slug: string;
-  createdAt: string;
-}
-
-export interface Asset {
-  id: string;
-  workspaceId: string;
-  uploaderId: string;
-  fileName: string;
-  mimeType: string;
-  width: number;
-  height: number;
-  fileSize: number;
-  originalUrl: string;
-  thumbnailUrl: string;
-  dominantColor?: string;
-  altText: string;
-  tagIds: string[];
-  status: AssetStatus;
+  status: FolderStatus;
+  sortOrder: number;
+  depth: number;
+  path: string[];
+  createdBy: string;
+  updatedBy: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
 }
 
-export interface EntryRevision {
+export interface DocumentVersion {
   id: string;
-  entryId: string;
-  versionNumber: number;
-  editorId: string;
+  documentId: string;
+  versionNo: number;
   title: string;
-  summary: string;
-  body: Array<{ id: string; type: "heading" | "paragraph" | "quote"; content: string }>;
-  seoTitle?: string;
-  seoDescription?: string;
-  selectedAssetIds: string[];
-  changeNote?: string;
+  markdownBody: string;
+  renderedExcerpt: string;
+  status: DocumentStatus;
+  changeSummary?: string;
+  sourceType: "MANUAL" | "PDF_IMPORT" | "MIGRATION";
+  pdfImportStatus: PdfImportStatus;
+  createdBy: string;
   createdAt: string;
 }
 
-export interface ContentEntry {
+export interface DocumentRecord {
   id: string;
-  workspaceId: string;
-  contentTypeId: string;
-  currentRevisionId?: string;
-  publishedRevisionId?: string;
-  authorId: string;
-  ownerId: string;
+  folderId: string;
   title: string;
   slug: string;
-  locale: string;
-  status: EntryStatus;
   summary: string;
-  seoTitle?: string;
-  seoDescription?: string;
-  representativeAssetId?: string;
-  tagIds: string[];
-  submittedAt?: string;
-  approvedAt?: string;
+  status: DocumentStatus;
+  visibilityScope: VisibilityScope;
+  sortOrder: number;
+  currentVersionId: string;
+  publishedVersionId?: string;
   publishedAt?: string;
-  archivedAt?: string;
+  publishedBy?: string;
+  lastReviewedAt?: string;
+  lastReviewedBy?: string;
+  createdBy: string;
+  updatedBy: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
+  hasUnpublishedChanges: boolean;
 }
 
-export interface ReviewTask {
+export interface Attachment {
   id: string;
-  entryId: string;
-  requestedById: string;
-  assignedReviewerId?: string;
-  status: ReviewStatus;
-  submissionNote?: string;
-  decisionNote?: string;
-  decidedAt?: string;
+  documentId: string;
+  storageProvider: string;
+  storageBucket: string;
+  storageKey: string;
+  originalFilename: string;
+  contentType: string;
+  extension: string;
+  fileSize: number;
+  checksum: string;
+  status: AttachmentStatus;
+  virusScanStatus: "PENDING" | "PASSED" | "FAILED" | "SKIPPED";
+  linkRole: "INLINE_IMAGE" | "REFERENCE_FILE" | "EXPORT_FILE";
+  createdBy: string;
   createdAt: string;
-  updatedAt: string;
-}
-
-export interface PublicationSchedule {
-  id: string;
-  entryId: string;
-  targetRevisionId: string;
-  publishMode: PublishMode;
-  scheduledFor?: string;
-  executedAt?: string;
-  status: PublicationStatus;
-  createdById: string;
-  failureReason?: string;
-  createdAt: string;
-  updatedAt: string;
+  deletedAt?: string;
+  url: string;
 }
 
 export interface AuditEvent {
   id: string;
   workspaceId: string;
   actorId: string;
-  entityType: "ContentEntry" | "EntryRevision" | "ReviewTask" | "Asset" | "PublicationSchedule";
+  entityType: string;
   entityId: string;
   action: AuditAction;
   metadata?: Record<string, unknown>;
   createdAt: string;
 }
 
-export interface EntryFilters {
-  status?: EntryStatus;
-  contentType?: ContentType["code"];
-  authorId?: string;
-  tag?: string;
-  locale?: string;
-  q?: string;
+export interface SearchResult {
+  documentId: string;
+  title: string;
+  folderPath: string;
+  summary: string;
+  updatedAt: string;
+  score: number;
+}
+
+export interface BackupRun {
+  id: string;
+  runType: BackupRunType;
+  status: BackupStatus;
+  validationStatus: ValidationStatus;
+  startedAt: string;
+  completedAt: string | null;
+  databaseArtifactUri: string;
+  fileArtifactUri: string;
+  retentionExpiresAt: string;
+  triggeredBy: string;
+}
+
+export interface RestoreRun {
+  id: string;
+  backupRunId: string;
+  status: BackupStatus;
+  targetEnvironment: string;
+  validationReport: string;
+  triggeredBy: string;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface SoftwareInventoryItem {
+  id: string;
+  componentName: string;
+  componentType: "LIBRARY" | "SERVICE" | "TOOL" | "IMAGE";
+  version: string;
+  licenseName: string;
+  licenseStatus: LicenseStatus;
+  vulnerabilitySummary: string;
+  riskLevel: RiskLevel;
+  approvedBy?: string;
+  approvedAt?: string;
+  notes?: string;
+}
+
+export interface DeploymentRelease {
+  id: string;
+  releaseVersion: string;
+  gitCommitSha: string;
+  buildNumber: string;
+  environment: string;
+  status: DeploymentStatus;
+  deployedAt?: string;
+  approvedBy?: string;
+  rollbackOfReleaseId?: string;
+}
+
+export interface ProjectSchedule {
+  id: string;
+  name: string;
+  phase: string;
+  ownerName: string;
+  plannedStartDate: string;
+  plannedEndDate: string;
+  status: "ON_TRACK" | "AT_RISK" | "DELAYED";
+  mitigationPlan?: string;
+}
+
+export interface ScopeItem {
+  id: string;
+  requirementId: string;
+  title: string;
+  status: "IN_SCOPE" | "OUT_OF_SCOPE" | "CHANGED";
+  note?: string;
+}
+
+export interface StaffAssignment {
+  id: string;
+  role: string;
+  assignee: string;
+  startDate: string;
+  endDate: string;
+  approvalStatus: "PENDING" | "APPROVED";
+}
+
+export interface RiskIssue {
+  id: string;
+  title: string;
+  cause: string;
+  impact: string;
+  owner: string;
+  dueDate: string;
+  status: "OPEN" | "MITIGATING" | "CLOSED";
+}
+
+export interface Deliverable {
+  id: string;
+  name: string;
+  version: string;
+  dueDate: string;
+  approvalStatus: "PENDING" | "APPROVED" | "REJECTED";
+  linkedRequirements: string[];
+}
+
+export interface ChangeRequest {
+  id: string;
+  title: string;
+  requester: string;
+  impactAnalysis: string;
+  status: ChangeRequestStatus;
+  requestedAt: string;
+  approvedAt?: string;
+}
+
+export interface FolderSummary {
+  id: string;
+  parentId: string | null;
+  name: string;
+  status: FolderStatus;
+  sortOrder: number;
+  hasChildren: boolean;
+  childDocumentCount: number;
+}
+
+export interface AttachmentSummary {
+  id: string;
+  originalFilename: string;
+  contentType: string;
+  fileSize: number;
+  status: AttachmentStatus;
+  downloadUrl: string | null;
+}
+
+export interface DocumentSummary {
+  id: string;
+  folderId: string;
+  title: string;
+  slug: string;
+  summary: string;
+  status: DocumentStatus;
+  visibilityScope: VisibilityScope;
+  sortOrder: number;
+  updatedAt: string;
+  hasUnpublishedChanges: boolean;
+}
+
+export interface DocumentDetail extends DocumentSummary {
+  markdownBody: string;
+  renderedBody: string;
+  folderPath: string[];
+  publishedAt: string | null;
+  attachments: AttachmentSummary[];
+  versions: DocumentVersion[];
+}
+
+export interface PortalFolderContents {
+  folder: FolderSummary;
+  breadcrumb: FolderSummary[];
+  folders: FolderSummary[];
+  documents: DocumentSummary[];
 }
 
 export interface DashboardSummary {
-  kpis: Array<{
-    key: string;
-    label: string;
-    value: number;
-    trend: string;
-  }>;
-  recentEntries: Array<{
-    id: string;
-    title: string;
-    status: EntryStatus;
-    updatedAt: string;
-    authorName: string;
-    contentType: string;
-    thumbnailUrl?: string;
-  }>;
-  upcomingPublications: Array<{
-    id: string;
-    title: string;
-    scheduledFor: string;
-    status: EntryStatus;
-  }>;
-  recentAssets: Array<{
-    id: string;
-    fileName: string;
-    thumbnailUrl: string;
-    altText: string;
-  }>;
-  activity: Array<{
-    id: string;
-    action: AuditAction;
-    actorName: string;
-    entityLabel: string;
-    createdAt: string;
-  }>;
+  highlights: Array<{ key: string; label: string; value: string; tone: "accent" | "success" | "warning" | "neutral" }>;
+  recentPublications: Array<{ id: string; title: string; folderPath: string; updatedAt: string; status: DocumentStatus }>;
+  reviewQueue: Array<{ id: string; title: string; updatedAt: string; folderPath: string }>;
+  backups: BackupRun[];
+  risks: RiskIssue[];
+  deployments: DeploymentRelease[];
 }

@@ -7,20 +7,39 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const request = host.switchToHttp().getRequest<{ url: string }>();
 
     if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      const errorType =
+        status === HttpStatus.BAD_REQUEST
+          ? "VALIDATION"
+          : status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN
+            ? "AUTHORIZATION"
+            : status === HttpStatus.NOT_FOUND
+              ? "NOT_FOUND"
+              : status === HttpStatus.CONFLICT
+                ? "CONFLICT"
+                : "SYSTEM";
       response.status(exception.getStatus()).json({
-        statusCode: exception.getStatus(),
+        success: false,
         message: exception.message,
-        path: request.url,
-        timestamp: new Date().toISOString(),
+        data: null,
+        error: {
+          code: `HTTP_${status}`,
+          type: errorType,
+          details: [{ reason: request.url }],
+        },
       });
       return;
     }
 
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-      statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      success: false,
       message: "Internal server error",
-      path: request.url,
-      timestamp: new Date().toISOString(),
+      data: null,
+      error: {
+        code: "HTTP_500",
+        type: "SYSTEM",
+        details: [{ reason: request.url }],
+      },
     });
   }
 }
