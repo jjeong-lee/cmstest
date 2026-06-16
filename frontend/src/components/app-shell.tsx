@@ -7,10 +7,10 @@ import { useSessionStore } from "@/lib/session-store";
 
 const primaryNav = [
   { href: "/dashboard", label: "Dashboard", badge: "요약" },
-  { href: "/content", label: "Content", badge: "문서" },
-  { href: "/attachments", label: "Attachments", badge: "파일" },
-  { href: "/operations", label: "Operations", badge: "백업" },
-  { href: "/governance", label: "Governance", badge: "통제" },
+  { href: "/content", label: "콘텐츠 Content", badge: "문서" },
+  { href: "/attachments", label: "첨부 Attachments", badge: "파일" },
+  { href: "/operations", label: "운영 Operations", badge: "백업" },
+  { href: "/governance", label: "거버넌스 Governance", badge: "통제" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -40,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="rail-footer">
           <div className="info-card compact">
-            <span className="eyebrow subtle">Review Queue</span>
+            <span className="eyebrow subtle">검토 대기 Review Queue</span>
             <strong>문서 상태 전이와 감사 이력이 우측 패널 없이도 바로 보이도록 구성</strong>
           </div>
           <div className="info-card compact">
@@ -54,19 +54,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="admin-main">
         <header className="topbar">
           <div>
-            <span className="topbar-kicker">Current Workspace</span>
+            <span className="topbar-kicker">현재 워크스페이스 Current Workspace</span>
             <h2>정책 / 운영 / 발행 흐름</h2>
           </div>
           <div className="topbar-actions">
             <div className="search-pill" aria-label="전역 검색">
-              <span>Search</span>
+              <span>검색 Search</span>
               <strong>제목, 본문, 변경 요청</strong>
             </div>
             <Link href="/content" className="status-chip">
               검토 대기 0건
             </Link>
             <Link href="/portal" className="button-secondary">
-              Portal 보기
+              포털 Portal 보기
             </Link>
           </div>
         </header>

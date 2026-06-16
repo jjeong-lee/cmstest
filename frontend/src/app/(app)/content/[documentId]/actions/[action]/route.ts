@@ -14,7 +14,9 @@ export async function POST(
   const { documentId, action } = await params;
 
   const path =
-    action === "submit-review"
+    action === "save"
+      ? `/admin/documents/${documentId}`
+      : action === "submit-review"
       ? `/admin/documents/${documentId}/submit-review`
       : action === "approve"
         ? `/admin/documents/${documentId}/approve`
@@ -28,12 +30,19 @@ export async function POST(
 
   if (path) {
     await fetch(`${API_BASE_URL}${path}`, {
-      method: action === "delete" ? "DELETE" : "POST",
+      method: action === "save" ? "PATCH" : action === "delete" ? "DELETE" : "POST",
       headers: {
         "Content-Type": "application/json",
         "x-demo-user": action === "approve" ? "reviewer@example.com" : DEMO_USER,
       },
-      body: action === "unpublish" ? JSON.stringify({ reason: "관리자 요청" }) : action === "approve" ? JSON.stringify({ comment: "승인" }) : "{}",
+      body:
+        action === "save"
+          ? JSON.stringify({ changeSummary: "관리자 콘솔 Save 실행" })
+          : action === "unpublish"
+            ? JSON.stringify({ reason: "관리자 요청" })
+            : action === "approve"
+              ? JSON.stringify({ comment: "승인" })
+              : "{}",
       cache: "no-store",
     }).catch(() => undefined);
   }
