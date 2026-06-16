@@ -10,7 +10,7 @@ export function OperationsDashboard({
   return (
     <div className="page-shell">
       <section className="hero-panel compact-hero">
-        <span className="eyebrow">ADM-06 Operations</span>
+        <span className="eyebrow">ADM-06 운영 Operations</span>
         <h1 className="page-title">헬스 체크, 백업, 복구 상태를 운영 콘솔에서 통제합니다.</h1>
         <p className="page-copy">부분 실패 여부와 검증 상태를 한눈에 확인할 수 있도록 카드 밀도를 높였습니다.</p>
       </section>

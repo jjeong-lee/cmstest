@@ -31,7 +31,7 @@ export function GovernanceDashboard({
   return (
     <div className="page-shell">
       <section className="hero-panel compact-hero">
-        <span className="eyebrow">ADM-07 Governance</span>
+        <span className="eyebrow">ADM-07 거버넌스 Governance</span>
         <h1 className="page-title">일정, 범위, 인력, 위험, 산출물, 변경 요청을 하나의 레지스터로 확인합니다.</h1>
       </section>
 

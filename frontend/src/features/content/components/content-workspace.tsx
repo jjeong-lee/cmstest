@@ -22,7 +22,7 @@ export function ContentWorkspace({
       <section className="workspace-layout">
         <aside className="panel folder-panel">
           <div className="panel-head">
-            <h3>Folder Tree</h3>
+            <h3>폴더 트리 Folder Tree</h3>
             <span className="eyebrow subtle">ADM-02</span>
           </div>
           <div className="tree-list">
@@ -37,7 +37,7 @@ export function ContentWorkspace({
           <article className="hero-panel compact-hero">
             <div className="split-head">
               <div>
-                <span className="eyebrow">Current Folder</span>
+                <span className="eyebrow">현재 폴더 Current Folder</span>
                 <h1 className="page-title">{contents.folder.name}</h1>
                 <p className="page-copy">{contents.breadcrumb.map((item) => item.name).join(" / ")}</p>
               </div>
@@ -45,7 +45,7 @@ export function ContentWorkspace({
                 <Link href={`/content/${contents.documents[0]?.id ?? ""}`} className="button">
                   최근 문서 열기
                 </Link>
-                <span className="button-ghost">Status / Owner / Sort</span>
+                <span className="button-ghost">상태 / 담당 / 정렬</span>
               </div>
             </div>
           </article>
@@ -53,7 +53,7 @@ export function ContentWorkspace({
           <div className="editorial-grid">
             {contents.folders.map((folder) => (
               <Link key={folder.id} href={`/content?folderId=${folder.id}`} className="content-card">
-                <span className="eyebrow subtle">Folder</span>
+                <span className="eyebrow subtle">폴더 Folder</span>
                 <strong>{folder.name}</strong>
                 <p>하위 문서 {folder.childDocumentCount}건</p>
                 <div className="meta-row">
