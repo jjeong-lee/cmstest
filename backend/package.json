@@ -2,6 +2,7 @@
   "name": "backend",
   "private": true,
   "type": "commonjs",
+  "packageManager": "pnpm@10.0.0",
   "scripts": {
     "build": "nest build",
     "start": "node dist/main.js",
