@@ -1,12 +1,15 @@
+import { INestApplication } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
-import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import { INestApplication } from "@nestjs/common";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../../src/app.module";
 
-describe("CMS Admin API contract smoke", () => {
+describe("CMS API contract smoke", () => {
   let app: INestApplication;
-  let token = "editor@example.com";
+  let adminToken = "admin@example.com";
+  let reviewerToken = "reviewer@example.com";
+  let folderId = "";
+  let documentId = "";
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -22,49 +25,97 @@ describe("CMS Admin API contract smoke", () => {
     await app?.close();
   });
 
-  it("logs in a demo user", async () => {
-    const response = await request(app.getHttpServer())
+  it("logs in admin and reviewer demo users", async () => {
+    const adminResponse = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "editor@example.com" })
+      .send({ email: "admin@example.com" })
       .expect(200);
 
-    expect(response.body.user.email).toBe("editor@example.com");
-    token = response.body.token;
+    const reviewerResponse = await request(app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({ email: "reviewer@example.com" })
+      .expect(200);
+
+    expect(adminResponse.body.user.role).toBe("ADMIN");
+    expect(reviewerResponse.body.user.role).toBe("REVIEWER");
+    adminToken = adminResponse.body.token;
+    reviewerToken = reviewerResponse.body.token;
   });
 
-  it("returns dashboard summary for authenticated users", async () => {
+  it("returns dashboard summary for authenticated admin users", async () => {
     const response = await request(app.getHttpServer())
-      .get("/api/v1/dashboard/summary")
-      .set("Authorization", `Bearer ${token}`)
+      .get("/api/v1/admin/dashboard")
+      .set("Authorization", `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(response.body.kpis).toHaveLength(4);
-    expect(response.body.recentEntries.length).toBeGreaterThan(0);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.highlights.length).toBeGreaterThan(0);
   });
 
-  it("creates and submits a new entry", async () => {
-    const createResponse = await request(app.getHttpServer())
-      .post("/api/v1/entries")
-      .set("Authorization", `Bearer ${token}`)
+  it("creates a folder and document, then approves and publishes it", async () => {
+    const folderResponse = await request(app.getHttpServer())
+      .post("/api/v1/admin/folders")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "계약 테스트 폴더", status: "ACTIVE" })
+      .expect(201);
+
+    folderId = folderResponse.body.data.id;
+
+    const createDocumentResponse = await request(app.getHttpServer())
+      .post("/api/v1/admin/documents")
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({
-        contentTypeId: "type-article",
-        title: "Contract Test Entry",
-        slug: "contract-test-entry",
-        locale: "ko-KR",
-        summary: "Contract smoke flow",
-        body: [{ id: "body-1", type: "paragraph", content: "Contract smoke body" }],
+        folderId,
+        title: "계약 테스트 문서",
+        markdownBody: "# 계약 테스트\n\n포털 검색과 발행 흐름을 확인합니다.",
+        visibilityScope: "PUBLIC",
       })
       .expect(201);
 
-    const entryId = createResponse.body.id;
-    expect(entryId).toBeTruthy();
+    documentId = createDocumentResponse.body.data.id;
 
-    const submitResponse = await request(app.getHttpServer())
-      .post(`/api/v1/entries/${entryId}/submit`)
-      .set("Authorization", `Bearer ${token}`)
-      .send({ submissionNote: "Please review" })
-      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/documents/${documentId}/submit-review`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({})
+      .expect(200);
 
-    expect(submitResponse.body.status).toBe("open");
+    const approveResponse = await request(app.getHttpServer())
+      .post(`/api/v1/admin/documents/${documentId}/approve`)
+      .set("Authorization", `Bearer ${reviewerToken}`)
+      .send({ comment: "승인" })
+      .expect(200);
+
+    expect(approveResponse.body.data.status).toBe("APPROVED");
+
+    const publishResponse = await request(app.getHttpServer())
+      .post(`/api/v1/admin/documents/${documentId}/publish`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({})
+      .expect(200);
+
+    expect(publishResponse.body.data.status).toBe("PUBLISHED");
+  });
+
+  it("shows published documents in portal search", async () => {
+    const response = await request(app.getHttpServer())
+      .get("/api/v1/portal/search")
+      .query({ q: "계약" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.items.some((item: { documentId: string }) => item.documentId === documentId)).toBe(true);
+  });
+
+  it("returns ops health and backup list", async () => {
+    const healthResponse = await request(app.getHttpServer()).get("/api/v1/ops/health").expect(200);
+    expect(healthResponse.body.status).toMatch(/UP|DEGRADED|DOWN/);
+
+    const backupsResponse = await request(app.getHttpServer())
+      .get("/api/v1/admin/backups")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+
+    expect(backupsResponse.body.data.length).toBeGreaterThan(0);
   });
 });

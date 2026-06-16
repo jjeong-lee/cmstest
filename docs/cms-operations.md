@@ -2,45 +2,41 @@
 
 ## Overview
 
-이 저장소는 `frontend`와 `backend`로 분리된 CMS 백오피스 모노레포다. 초기 구현은 Prisma 스키마와 Nest/Next 구조를 제공하며, 런타임에서는 인메모리 더미 데이터를 기본 fallback으로 사용한다.
+이 저장소는 관리자 콘솔과 포털을 함께 제공하는 마크다운 기반 CMS 모노레포다. 현재 런타임 데이터는 `backend`의 인메모리 저장소를 사용하므로 재시작 시 초기화된다.
 
-## Local Services
+## Entry Points
 
-- App stack: 루트 `docker-compose.yml`
-- Infra only: `infrastructure/docker-compose.yml`
-- Frontend preview: `http://localhost:3000`
+- Branch preview: 루트 `docker-compose.yml`
+- Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:4000/api/v1`
-- PostgreSQL: `localhost:5432`
-- MinIO API / Console: `localhost:9000` / `localhost:9001`
+- Health: `http://localhost:4000/api/v1/ops/health`
 
-## Environment Files
-
-- Root defaults: `.env.example`
-- Backend defaults: `backend/.env.example`
-- Frontend defaults: `frontend/.env.example`
-
-## Demo Users
+## Demo Accounts
 
 - `admin@example.com`
-- `editor@example.com`
 - `reviewer@example.com`
-- `publisher@example.com`
+- `operator@example.com`
+- `user@example.com`
 
-백엔드 데모 인증은 `POST /api/v1/auth/login` 또는 `x-demo-user` 헤더 기반으로 동작한다.
+인증은 `POST /api/v1/auth/login` 또는 `x-demo-user` 헤더를 사용한다.
 
-## Core Flows
+## Admin Flow
 
-1. Draft authoring
-   `Entries`에서 새 엔트리를 생성하고 `Save Draft`로 revision을 누적한다.
-2. Review workflow
-   초안을 저장한 뒤 `Submit for Review`를 실행하고 `Review` 화면에서 승인 또는 반려한다.
-3. Publication workflow
-   승인 후 즉시 발행하거나 미래 시각으로 예약 발행한다.
-4. Media operations
-   `Media` 화면에서 자산을 업로드하고 대표 이미지로 선택한다.
+1. `Content`에서 폴더와 문서를 확인한다.
+2. 문서 상세에서 `Submit Review`, `Approve`, `Publish`, `게시중단`, `삭제`를 순서대로 실행한다.
+3. `Attachments`에서 첨부 메타데이터와 다운로드 가능 상태를 확인한다.
+4. `Operations`에서 헬스 체크와 백업 이력을 확인한다.
+5. `Governance`에서 일정, 범위, 위험, 산출물, 변경 요청 레지스터를 점검한다.
 
-## Notes
+## Portal Flow
 
-- 현재 API 저장소는 인메모리이므로 프로세스 재시작 시 상태가 초기화된다.
-- Prisma 스키마와 seed 파일은 PostgreSQL 영속화 전환을 위한 기준 구조다.
-- Playwright와 contract smoke 테스트 파일은 포함되어 있지만, 이 변경에서는 의존성 설치와 실제 실행은 수행하지 않았다.
+1. `/portal`에서 활성 폴더 트리와 추천 문서를 확인한다.
+2. `/portal/folders/:folderId`에서 breadcrumb와 문서 목록을 탐색한다.
+3. `/portal/documents/:documentId`에서 마크다운 렌더링과 첨부파일 목록을 확인한다.
+4. `/portal/search?q=배포`로 게시 문서 검색 결과를 확인한다.
+
+## Operational Notes
+
+- 손상 PDF나 미지원 첨부는 `ORPHANED` 또는 실패 상태로 남길 수 있다.
+- 백업 실행 결과는 `SUCCEEDED`, `PARTIAL_FAILURE`, `FAILED` 상태로 구분된다.
+- 배포 이력과 소프트웨어 목록은 관리자 콘솔의 `Governance` 화면에서 함께 추적한다.

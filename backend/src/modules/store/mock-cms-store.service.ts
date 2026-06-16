@@ -1,274 +1,338 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { createHash, randomUUID } from "node:crypto";
 import {
-  Asset,
+  Attachment,
+  AttachmentSummary,
   AuditAction,
   AuditEvent,
-  ContentEntry,
-  ContentType,
-  DashboardSummary,
-  EntryFilters,
-  EntryRevision,
-  EntryStatus,
-  PublicationSchedule,
-  ReviewTask,
-  Role,
+  BackupRun,
+  ChangeRequest,
+  Deliverable,
+  DeploymentRelease,
+  DocumentDetail,
+  DocumentRecord,
+  DocumentStatus,
+  DocumentSummary,
+  DocumentVersion,
+  Folder,
+  FolderStatus,
+  FolderSummary,
+  PortalFolderContents,
+  ProjectSchedule,
+  RestoreRun,
+  RiskIssue,
+  ScopeItem,
+  SearchResult,
   SessionUser,
-  Tag,
+  SoftwareInventoryItem,
+  StaffAssignment,
   User,
+  VisibilityScope,
   Workspace,
 } from "./cms.types";
 
+type CreateFolderInput = {
+  parentId?: string | null;
+  name: string;
+  status?: FolderStatus;
+  sortOrder?: number;
+};
+
+type UpdateFolderInput = Partial<CreateFolderInput>;
+
+type CreateDocumentInput = {
+  folderId: string;
+  title: string;
+  markdownBody: string;
+  visibilityScope?: VisibilityScope;
+  summary?: string;
+  changeSummary?: string;
+};
+
+type UpdateDocumentInput = Partial<CreateDocumentInput> & {
+  expectedVersionId?: string;
+};
+
+type CreateAttachmentInput = {
+  fileName: string;
+  contentType?: string;
+  fileSize?: number;
+  linkRole?: Attachment["linkRole"];
+};
+
 @Injectable()
 export class MockCmsStoreService {
-  private readonly workspace: Workspace;
-  private readonly users: User[];
-  private readonly contentTypes: ContentType[];
-  private readonly tags: Tag[];
-  private readonly assets: Asset[];
-  private readonly entries: ContentEntry[];
-  private readonly revisions: EntryRevision[];
-  private readonly reviewTasks: ReviewTask[];
-  private readonly publicationSchedules: PublicationSchedule[];
-  private readonly auditEvents: AuditEvent[];
+  private readonly workspace: Workspace = {
+    id: "workspace-cms",
+    name: "Northstar Markdown CMS",
+    code: "northstar-cms",
+    timezone: "Asia/Seoul",
+    locale: "ko-KR",
+  };
+
+  private readonly users: User[] = [];
+  private readonly folders: Folder[] = [];
+  private readonly documents: DocumentRecord[] = [];
+  private readonly versions: DocumentVersion[] = [];
+  private readonly attachments: Attachment[] = [];
+  private readonly auditEvents: AuditEvent[] = [];
+  private readonly backupRuns: BackupRun[] = [];
+  private readonly restoreRuns: RestoreRun[] = [];
+  private readonly softwareInventory: SoftwareInventoryItem[] = [];
+  private readonly deployments: DeploymentRelease[] = [];
+  private readonly schedules: ProjectSchedule[] = [];
+  private readonly scopeItems: ScopeItem[] = [];
+  private readonly staffAssignments: StaffAssignment[] = [];
+  private readonly risks: RiskIssue[] = [];
+  private readonly deliverables: Deliverable[] = [];
+  private readonly changeRequests: ChangeRequest[] = [];
 
   constructor() {
     const now = new Date().toISOString();
-
-    this.workspace = {
-      id: "workspace-1",
-      name: "Northstar CMS",
-      code: "northstar",
-      defaultLocale: "ko-KR",
-      timezone: "Asia/Seoul",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.users = [
-      this.createUser("user-admin", "admin@example.com", "Platform Admin", "admin", now),
-      this.createUser("user-editor", "editor@example.com", "Editorial Team", "editor", now),
-      this.createUser("user-reviewer", "reviewer@example.com", "Quality Reviewer", "reviewer", now),
-      this.createUser("user-publisher", "publisher@example.com", "Channel Publisher", "publisher", now),
-    ];
-
-    this.contentTypes = [
-      {
-        id: "type-article",
-        code: "article",
-        name: "Article",
-        description: "뉴스, 블로그, 롱폼 아티클",
-        fieldSchema: {
-          bodyHint: "제목, 리드, 본문 단락, 인용문 조합",
-          requiredFields: ["title", "slug", "locale", "summary", "body"],
-          ctaLabel: "Read more",
-        },
-        isActive: true,
-      },
-      {
-        id: "type-landing",
-        code: "landing_page",
-        name: "Landing Page",
-        description: "캠페인 및 소개형 페이지",
-        fieldSchema: {
-          bodyHint: "히어로, 가치 제안, CTA 구성",
-          requiredFields: ["title", "slug", "locale", "summary", "body"],
-          ctaLabel: "Start now",
-        },
-        isActive: true,
-      },
-      {
-        id: "type-banner",
-        code: "promo_banner",
-        name: "Promo Banner",
-        description: "단기 프로모션 배너",
-        fieldSchema: {
-          bodyHint: "짧은 메시지와 CTA 중심",
-          requiredFields: ["title", "slug", "locale", "summary", "body"],
-          ctaLabel: "Explore",
-        },
-        isActive: true,
-      },
-    ];
-
-    this.tags = [
-      this.createTag("tag-design", "Design"),
-      this.createTag("tag-launch", "Launch"),
-      this.createTag("tag-notice", "Notice"),
-    ];
-
-    this.assets = [
-      this.createAsset({
-        id: "asset-hero",
-        uploaderId: "user-editor",
-        fileName: "campaign-hero.jpg",
-        altText: "Warm studio hero composition",
-        dominantColor: "#d66a3d",
-        status: "ready",
-      }),
-      this.createAsset({
-        id: "asset-grid",
-        uploaderId: "user-publisher",
-        fileName: "workspace-grid.jpg",
-        altText: "Workspace board with pinned cards",
-        dominantColor: "#7b6b58",
-        status: "ready",
-      }),
-      this.createAsset({
-        id: "asset-processing",
-        uploaderId: "user-editor",
-        fileName: "upcoming-shoot.jpg",
-        altText: "Processing upload item",
-        dominantColor: "#bcb0a2",
-        status: "processing",
-      }),
-    ];
-
-    this.entries = [];
-    this.revisions = [];
-    this.reviewTasks = [];
-    this.publicationSchedules = [];
-    this.auditEvents = [];
-
-    const articleEntry = this.createEntry(
-      {
-        contentTypeId: "type-article",
-        title: "Summer Studio Launch",
-        slug: "summer-studio-launch",
-        locale: "ko-KR",
-        summary: "브랜드 스튜디오 오픈을 알리는 메인 아티클",
-        seoTitle: "Summer Studio Launch",
-        seoDescription: "브랜드 스튜디오 오픈 공지",
-        representativeAssetId: "asset-hero",
-        tagIds: ["tag-launch", "tag-notice"],
-        body: [
-          { id: "block-1", type: "heading", content: "새로운 스튜디오 오픈" },
-          { id: "block-2", type: "paragraph", content: "운영팀이 사용할 신규 CMS 런칭과 함께 공개됩니다." },
-        ],
-        changeNote: "초기 초안 생성",
-      },
-      this.getUser("user-editor").id,
-      false,
+    this.users.push(
+      this.createUser("user-admin", "admin@example.com", "콘텐츠 관리자", "ADMIN", now),
+      this.createUser("user-reviewer", "reviewer@example.com", "검수 담당자", "REVIEWER", now),
+      this.createUser("user-operator", "operator@example.com", "운영 담당자", "OPERATOR", now),
+      this.createUser("user-portal", "user@example.com", "포털 사용자", "USER", now),
     );
 
-    this.updateEntry(
-      articleEntry.id,
+    const policy = this.seedFolder({ name: "정책", status: "ACTIVE", sortOrder: 10 }, "user-admin");
+    const operations = this.seedFolder({ parentId: policy.id, name: "운영 가이드", status: "ACTIVE", sortOrder: 10 }, "user-admin");
+    const notices = this.seedFolder({ name: "공지", status: "ACTIVE", sortOrder: 20 }, "user-admin");
+    const archive = this.seedFolder({ name: "보관함", status: "INACTIVE", sortOrder: 30 }, "user-admin");
+
+    const publishedDoc = this.seedDocument(
       {
-        title: "Summer Studio Launch Update",
-        summary: "브랜드 스튜디오 오픈 일정과 준비 현황을 정리한 아티클",
-        body: [
-          { id: "block-1", type: "heading", content: "새로운 스튜디오 오픈 일정" },
-          { id: "block-2", type: "paragraph", content: "검수 전 최신 진행 상황을 반영했습니다." },
-          { id: "block-3", type: "quote", content: "이미지와 운영 효율을 중심에 둔 설계" },
-        ],
-        changeNote: "본문 확장 및 요약 갱신",
+        folderId: operations.id,
+        title: "배포 점검 체크리스트",
+        markdownBody: [
+          "# 배포 점검 체크리스트",
+          "",
+          "| 항목 | 확인 내용 |",
+          "| --- | --- |",
+          "| 상태 | 헬스 체크와 로그를 확인합니다. |",
+          "",
+          "```bash",
+          "curl /api/v1/ops/health",
+          "```",
+          "",
+          "- 서비스 상태 확인",
+          "- 로그 확인",
+          "- 백업 이력 점검",
+        ].join("\n"),
+        visibilityScope: "PUBLIC",
+        summary: "운영 반영 전 확인해야 할 핵심 체크리스트",
       },
-      this.getUser("user-editor").id,
-      false,
+      "user-admin",
+    );
+    this.submitReview(publishedDoc.id, "운영팀 검토 요청", "user-admin");
+    this.approveDocument(publishedDoc.id, "검토 승인", "user-reviewer");
+    this.publishDocument(publishedDoc.id, "user-admin");
+
+    const draftDoc = this.seedDocument(
+      {
+        folderId: notices.id,
+        title: "주간 공지 템플릿",
+        markdownBody: "# 주간 공지 템플릿\n\n운영 공지를 이 양식으로 작성합니다.",
+        visibilityScope: "INTERNAL",
+        summary: "내부 공지 작성용 템플릿",
+      },
+      "user-admin",
     );
 
-    const scheduledEntry = this.createEntry(
-      {
-        contentTypeId: "type-landing",
-        title: "Creator Week Landing",
-        slug: "creator-week-landing",
-        locale: "ko-KR",
-        summary: "크리에이터 위크 캠페인 랜딩 페이지",
-        representativeAssetId: "asset-grid",
-        tagIds: ["tag-launch", "tag-design"],
-        body: [
-          { id: "block-4", type: "heading", content: "Creator Week" },
-          { id: "block-5", type: "paragraph", content: "캠페인 일정과 참여 혜택을 정리한 랜딩 페이지입니다." },
-        ],
-        changeNote: "랜딩 초안 생성",
-      },
-      this.getUser("user-editor").id,
-      false,
+    this.createAttachment(
+      publishedDoc.id,
+      { fileName: "checklist.pdf", contentType: "application/pdf", fileSize: 1_280_000, linkRole: "REFERENCE_FILE" },
+      "user-admin",
+    );
+    this.createAttachment(
+      draftDoc.id,
+      { fileName: "weekly-template.png", contentType: "image/png", fileSize: 240_000, linkRole: "INLINE_IMAGE" },
+      "user-admin",
     );
 
-    const reviewTask = this.submitForReview(scheduledEntry.id, "배너 카피 검토 필요", "user-editor", false);
-    this.approveReview(reviewTask.id, "캠페인 문구 승인", "user-reviewer", false);
-    this.schedulePublication(
-      scheduledEntry.id,
+    this.backupRuns.push({
+      id: randomUUID(),
+      runType: "SCHEDULED",
+      status: "SUCCEEDED",
+      validationStatus: "PASSED",
+      startedAt: this.shiftMinutes(-240),
+      completedAt: this.shiftMinutes(-236),
+      databaseArtifactUri: "s3://cms-backups/2026-06-16/db.sql.gz",
+      fileArtifactUri: "s3://cms-backups/2026-06-16/assets.tar.gz",
+      retentionExpiresAt: this.shiftDays(14),
+      triggeredBy: "user-operator",
+    });
+    this.backupRuns.push({
+      id: randomUUID(),
+      runType: "MANUAL",
+      status: "PARTIAL_FAILURE",
+      validationStatus: "FAILED",
+      startedAt: this.shiftMinutes(-75),
+      completedAt: this.shiftMinutes(-70),
+      databaseArtifactUri: "s3://cms-backups/2026-06-16/manual-db.sql.gz",
+      fileArtifactUri: "s3://cms-backups/2026-06-16/manual-assets.tar.gz",
+      retentionExpiresAt: this.shiftDays(7),
+      triggeredBy: "user-operator",
+    });
+
+    this.softwareInventory.push(
       {
-        publishMode: "scheduled",
-        scheduledFor: new Date(Date.now() + 1000 * 60 * 45).toISOString(),
+        id: randomUUID(),
+        componentName: "Next.js",
+        componentType: "LIBRARY",
+        version: "15.0.0",
+        licenseName: "MIT",
+        licenseStatus: "APPROVED",
+        vulnerabilitySummary: "Known issues monitored, no blocking CVE",
+        riskLevel: "LOW",
+        approvedBy: "운영위원회",
+        approvedAt: this.shiftDays(-5),
       },
-      "user-publisher",
-      false,
+      {
+        id: randomUUID(),
+        componentName: "Object Storage Adapter",
+        componentType: "SERVICE",
+        version: "1.2.0",
+        licenseName: "Commercial",
+        licenseStatus: "CONDITIONAL",
+        vulnerabilitySummary: "서명 URL 만료시간 점검 필요",
+        riskLevel: "MEDIUM",
+        notes: "운영 반영 전 점검 항목 포함",
+      },
     );
 
-    const reviewEntry = this.createEntry(
+    this.deployments.push(
       {
-        contentTypeId: "type-banner",
-        title: "Urgent Service Notice",
-        slug: "urgent-service-notice",
-        locale: "ko-KR",
-        summary: "공지 배너용 짧은 메시지 초안",
-        tagIds: ["tag-notice"],
-        body: [
-          { id: "block-6", type: "paragraph", content: "서비스 점검 공지가 필요한 상태입니다." },
-        ],
-        changeNote: "배너 초안 작성",
+        id: randomUUID(),
+        releaseVersion: "2026.06.16-rc1",
+        gitCommitSha: "7f2c1d9",
+        buildNumber: "build-248",
+        environment: "staging",
+        status: "DEPLOYED",
+        deployedAt: this.shiftMinutes(-90),
+        approvedBy: "운영 담당자",
       },
-      this.getUser("user-editor").id,
-      false,
+      {
+        id: randomUUID(),
+        releaseVersion: "2026.06.14",
+        gitCommitSha: "9cd410a",
+        buildNumber: "build-244",
+        environment: "production",
+        status: "APPROVED",
+        approvedBy: "운영위원회",
+      },
     );
 
-    this.submitForReview(reviewEntry.id, "오늘 중 검토 필요", "user-editor", false);
-  }
+    this.schedules.push(
+      {
+        id: randomUUID(),
+        name: "1차 운영 전환",
+        phase: "전환",
+        ownerName: "콘텐츠 관리자",
+        plannedStartDate: "2026-06-20",
+        plannedEndDate: "2026-06-24",
+        status: "AT_RISK",
+        mitigationPlan: "백업 검증 자동화 선행",
+      },
+      {
+        id: randomUUID(),
+        name: "포털 검색 고도화",
+        phase: "개선",
+        ownerName: "운영 담당자",
+        plannedStartDate: "2026-06-27",
+        plannedEndDate: "2026-07-02",
+        status: "ON_TRACK",
+      },
+    );
 
-  private createUser(id: string, email: string, displayName: string, role: Role, now: string): User {
-    return {
-      id,
-      workspaceId: this.workspace.id,
-      email,
-      displayName,
-      role,
-      status: "active",
-      lastLoginAt: now,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
+    this.scopeItems.push(
+      { id: randomUUID(), requirementId: "FR-001", title: "제목/본문 검색", status: "IN_SCOPE" },
+      { id: randomUUID(), requirementId: "FR-025", title: "백업/복구", status: "IN_SCOPE" },
+      { id: randomUUID(), requirementId: "CR-009", title: "외부 PM 도구 연동", status: "OUT_OF_SCOPE", note: "v2 후보" },
+    );
 
-  private createTag(id: string, label: string): Tag {
-    return {
-      id,
-      workspaceId: this.workspace.id,
-      label,
-      slug: label.toLowerCase(),
-      createdAt: new Date().toISOString(),
-    };
-  }
+    this.staffAssignments.push(
+      {
+        id: randomUUID(),
+        role: "ADMIN",
+        assignee: "콘텐츠 관리자",
+        startDate: "2026-06-10",
+        endDate: "2026-07-31",
+        approvalStatus: "APPROVED",
+      },
+      {
+        id: randomUUID(),
+        role: "OPERATOR",
+        assignee: "운영 담당자",
+        startDate: "2026-06-10",
+        endDate: "2026-07-31",
+        approvalStatus: "PENDING",
+      },
+    );
 
-  private createAsset(input: {
-    id: string;
-    uploaderId: string;
-    fileName: string;
-    altText: string;
-    dominantColor: string;
-    status: Asset["status"];
-  }): Asset {
-    const createdAt = new Date().toISOString();
-    return {
-      id: input.id,
-      workspaceId: this.workspace.id,
-      uploaderId: input.uploaderId,
-      fileName: input.fileName,
-      mimeType: "image/jpeg",
-      width: 1080,
-      height: 1440,
-      fileSize: 324_000,
-      originalUrl: `https://images.example.com/${input.id}/original.jpg`,
-      thumbnailUrl: `https://images.example.com/${input.id}/thumb.jpg`,
-      dominantColor: input.dominantColor,
-      altText: input.altText,
-      tagIds: ["tag-design"],
-      status: input.status,
-      createdAt,
-      updatedAt: createdAt,
-    };
+    this.risks.push(
+      {
+        id: randomUUID(),
+        title: "손상 PDF 업로드 증가",
+        cause: "외부 공급 문서 품질 편차",
+        impact: "변환 실패 및 운영 문의 증가",
+        owner: "운영 담당자",
+        dueDate: "2026-06-22",
+        status: "MITIGATING",
+      },
+      {
+        id: randomUUID(),
+        title: "배포 승인 지연",
+        cause: "영향도 분석 누락",
+        impact: "운영 전환 일정 지연",
+        owner: "콘텐츠 관리자",
+        dueDate: "2026-06-21",
+        status: "OPEN",
+      },
+    );
+
+    this.deliverables.push(
+      {
+        id: randomUUID(),
+        name: "운영 가이드",
+        version: "v0.9",
+        dueDate: "2026-06-19",
+        approvalStatus: "PENDING",
+        linkedRequirements: ["FR-025", "FR-032"],
+      },
+      {
+        id: randomUUID(),
+        name: "OpenAPI 계약",
+        version: "v0.1",
+        dueDate: "2026-06-18",
+        approvalStatus: "APPROVED",
+        linkedRequirements: ["FR-022"],
+      },
+    );
+
+    this.changeRequests.push(
+      {
+        id: randomUUID(),
+        title: "검색 요약 노출 방식 조정",
+        requester: "포털 운영팀",
+        impactAnalysis: "UI 밀도 증가, API 변경 없음",
+        status: "READY_FOR_APPROVAL",
+        requestedAt: this.shiftDays(-2),
+      },
+      {
+        id: randomUUID(),
+        title: "PDF 변환 스캔본 OCR 도입",
+        requester: "운영위원회",
+        impactAnalysis: "",
+        status: "ANALYSIS_REQUIRED",
+        requestedAt: this.shiftDays(-1),
+      },
+    );
+
+    this.seedAudit("user-admin", "Folder", policy.id, "CREATE", { name: policy.name });
+    this.seedAudit("user-admin", "Folder", operations.id, "CREATE", { name: operations.name });
+    this.seedAudit("user-admin", "Document", publishedDoc.id, "PUBLISH", { title: publishedDoc.title });
   }
 
   getWorkspace(): Workspace {
@@ -279,10 +343,10 @@ export class MockCmsStoreService {
     return [...this.users];
   }
 
-  getUser(id: string): User {
-    const user = this.users.find((item) => item.id === id);
+  getUser(userId: string): User {
+    const user = this.users.find((item) => item.id === userId);
     if (!user) {
-      throw new NotFoundException(`User ${id} not found`);
+      throw new NotFoundException(`User ${userId} not found`);
     }
     return user;
   }
@@ -297,383 +361,613 @@ export class MockCmsStoreService {
       throw new NotFoundException(`Unknown user ${email}`);
     }
     user.lastLoginAt = new Date().toISOString();
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
-      workspaceId: user.workspaceId,
-      token: user.email,
-    };
+    return this.toSession(user);
   }
 
   getSessionFromToken(token: string): SessionUser | undefined {
     const user = this.findUserByEmail(token);
-    if (!user || user.status !== "active") {
+    if (!user || user.status !== "ACTIVE") {
       return undefined;
     }
-    return {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
-      workspaceId: user.workspaceId,
-      token,
-    };
+    return this.toSession(user);
   }
 
-  listContentTypes(): ContentType[] {
-    return [...this.contentTypes];
+  listRootFolders(): FolderSummary[] {
+    return this.folders
+      .filter((folder) => folder.parentId === null && folder.status !== "DELETED")
+      .sort(this.bySortOrder)
+      .map((folder) => this.toFolderSummary(folder));
   }
 
-  getContentTypeById(id: string): ContentType {
-    const contentType = this.contentTypes.find((item) => item.id === id);
-    if (!contentType) {
-      throw new NotFoundException(`Content type ${id} not found`);
-    }
-    return contentType;
-  }
-
-  listTags(): Tag[] {
-    return [...this.tags];
-  }
-
-  listAssets(): Asset[] {
-    return [...this.assets].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  }
-
-  getAsset(assetId: string): Asset {
-    const asset = this.assets.find((item) => item.id === assetId);
-    if (!asset) {
-      throw new NotFoundException(`Asset ${assetId} not found`);
-    }
-    return asset;
-  }
-
-  createAssetRecord(
-    payload: { fileName: string; altText: string; tagIds?: string[]; dominantColor?: string },
-    actorId: string,
-  ): Asset {
-    const now = new Date().toISOString();
-    const asset: Asset = {
-      id: randomUUID(),
-      workspaceId: this.workspace.id,
-      uploaderId: actorId,
-      fileName: payload.fileName,
-      mimeType: "image/jpeg",
-      width: 1200,
-      height: 1600,
-      fileSize: 480_000,
-      originalUrl: `https://images.example.com/assets/${payload.fileName}`,
-      thumbnailUrl: `https://images.example.com/assets/${payload.fileName}?thumb=1`,
-      dominantColor: payload.dominantColor ?? "#d66a3d",
-      altText: payload.altText,
-      tagIds: payload.tagIds ?? [],
-      status: "processing",
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.assets.unshift(asset);
-    this.recordAudit(actorId, "Asset", asset.id, "upload", { fileName: asset.fileName });
-    return asset;
-  }
-
-  markAssetReady(assetId: string): Asset {
-    const asset = this.getAsset(assetId);
-    asset.status = "ready";
-    asset.updatedAt = new Date().toISOString();
-    return asset;
-  }
-
-  listEntries(filters: EntryFilters = {}): Array<ContentEntry & { contentType: ContentType["code"] }> {
-    return this.entries
-      .filter((entry) => {
-        const contentType = this.getContentTypeById(entry.contentTypeId);
-        const matchesStatus = !filters.status || entry.status === filters.status;
-        const matchesType = !filters.contentType || contentType.code === filters.contentType;
-        const matchesAuthor = !filters.authorId || entry.authorId === filters.authorId;
-        const matchesLocale = !filters.locale || entry.locale === filters.locale;
-        const matchesTag = !filters.tag || entry.tagIds.includes(filters.tag);
-        const query = filters.q?.toLowerCase();
-        const matchesQuery =
-          !query ||
-          entry.title.toLowerCase().includes(query) ||
-          entry.summary.toLowerCase().includes(query) ||
-          entry.slug.toLowerCase().includes(query);
-        return matchesStatus && matchesType && matchesAuthor && matchesLocale && matchesTag && matchesQuery;
-      })
-      .map((entry) => ({ ...entry, contentType: this.getContentTypeById(entry.contentTypeId).code }))
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  }
-
-  getEntry(entryId: string): ContentEntry {
-    const entry = this.entries.find((item) => item.id === entryId);
-    if (!entry) {
-      throw new NotFoundException(`Entry ${entryId} not found`);
-    }
-    return entry;
-  }
-
-  listRevisions(entryId: string): EntryRevision[] {
-    return this.revisions
-      .filter((item) => item.entryId === entryId)
-      .sort((left, right) => right.versionNumber - left.versionNumber);
-  }
-
-  getRevision(revisionId: string): EntryRevision {
-    const revision = this.revisions.find((item) => item.id === revisionId);
-    if (!revision) {
-      throw new NotFoundException(`Revision ${revisionId} not found`);
-    }
-    return revision;
-  }
-
-  createEntry(
-    payload: {
-      contentTypeId: string;
-      title: string;
-      slug: string;
-      locale: string;
-      summary: string;
-      seoTitle?: string;
-      seoDescription?: string;
-      representativeAssetId?: string;
-      tagIds?: string[];
-      body: EntryRevision["body"];
-      changeNote?: string;
-    },
-    actorId: string,
-    logAudit = true,
-  ): ContentEntry {
-    const now = new Date().toISOString();
-    const entry: ContentEntry = {
-      id: randomUUID(),
-      workspaceId: this.workspace.id,
-      contentTypeId: payload.contentTypeId,
-      authorId: actorId,
-      ownerId: actorId,
-      title: payload.title,
-      slug: payload.slug,
-      locale: payload.locale,
-      status: "draft",
-      summary: payload.summary,
-      seoTitle: payload.seoTitle,
-      seoDescription: payload.seoDescription,
-      representativeAssetId: payload.representativeAssetId,
-      tagIds: payload.tagIds ?? [],
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.entries.push(entry);
-    const revision = this.createRevision(entry.id, actorId, payload, 1);
-    entry.currentRevisionId = revision.id;
-    if (logAudit) {
-      this.recordAudit(actorId, "ContentEntry", entry.id, "create", { title: entry.title });
-    }
-    return entry;
-  }
-
-  updateEntry(
-    entryId: string,
-    payload: Partial<{
-      title: string;
-      slug: string;
-      locale: string;
-      summary: string;
-      seoTitle: string;
-      seoDescription: string;
-      representativeAssetId: string;
-      tagIds: string[];
-      body: EntryRevision["body"];
-      changeNote: string;
-    }>,
-    actorId: string,
-    logAudit = true,
-  ): ContentEntry {
-    const entry = this.getEntry(entryId);
-    entry.title = payload.title ?? entry.title;
-    entry.slug = payload.slug ?? entry.slug;
-    entry.locale = payload.locale ?? entry.locale;
-    entry.summary = payload.summary ?? entry.summary;
-    entry.seoTitle = payload.seoTitle ?? entry.seoTitle;
-    entry.seoDescription = payload.seoDescription ?? entry.seoDescription;
-    entry.representativeAssetId = payload.representativeAssetId ?? entry.representativeAssetId;
-    entry.tagIds = payload.tagIds ?? entry.tagIds;
-    entry.ownerId = actorId;
-    entry.updatedAt = new Date().toISOString();
-
-    const latestRevision = this.listRevisions(entryId)[0];
-    const revision = this.createRevision(
-      entryId,
-      actorId,
+  createFolder(input: CreateFolderInput, actorId: string): FolderSummary {
+    const parent = input.parentId ? this.getFolder(input.parentId) : null;
+    this.assertFolderNameUnique(input.name, input.parentId ?? null);
+    const folder = this.seedFolder(
       {
-        title: entry.title,
-        summary: entry.summary,
-        seoTitle: entry.seoTitle,
-        seoDescription: entry.seoDescription,
-        representativeAssetId: entry.representativeAssetId,
-        tagIds: entry.tagIds,
-        body: payload.body ?? latestRevision.body,
-        changeNote: payload.changeNote,
+        parentId: parent?.id ?? null,
+        name: input.name,
+        status: input.status ?? "ACTIVE",
+        sortOrder: input.sortOrder ?? this.nextFolderSortOrder(parent?.id ?? null),
       },
-      latestRevision.versionNumber + 1,
+      actorId,
     );
-    entry.currentRevisionId = revision.id;
-    if (logAudit) {
-      this.recordAudit(actorId, "ContentEntry", entry.id, "update", { revisionId: revision.id });
+    this.recordAudit(actorId, "Folder", folder.id, "CREATE", { name: folder.name });
+    return this.toFolderSummary(folder);
+  }
+
+  updateFolder(folderId: string, input: UpdateFolderInput, actorId: string): FolderSummary {
+    const folder = this.getFolder(folderId);
+    if (folder.status === "DELETED") {
+      throw new ConflictException("Deleted folder cannot be updated");
     }
-    return entry;
+    const nextName = input.name ?? folder.name;
+    const nextParentId = input.parentId === undefined ? folder.parentId : input.parentId;
+    if (nextParentId === folder.id) {
+      throw new BadRequestException("Folder cannot be its own parent");
+    }
+    this.assertFolderNameUnique(nextName, nextParentId ?? null, folder.id);
+    folder.parentId = nextParentId ?? null;
+    folder.name = nextName;
+    folder.slug = slugify(nextName);
+    folder.status = input.status ?? folder.status;
+    folder.sortOrder = input.sortOrder ?? folder.sortOrder;
+    folder.updatedBy = actorId;
+    folder.updatedAt = new Date().toISOString();
+    this.refreshFolderPaths();
+    this.recordAudit(actorId, "Folder", folder.id, "UPDATE", { name: folder.name, status: folder.status });
+    return this.toFolderSummary(folder);
   }
 
-  archiveEntry(entryId: string, actorId: string): void {
-    const entry = this.getEntry(entryId);
-    entry.status = "archived";
-    entry.archivedAt = new Date().toISOString();
-    entry.updatedAt = entry.archivedAt;
-    this.recordAudit(actorId, "ContentEntry", entry.id, "archive", {});
+  deleteFolder(folderId: string, actorId: string): FolderSummary {
+    const folder = this.getFolder(folderId);
+    const activeChildren = this.folders.some((item) => item.parentId === folderId && item.status !== "DELETED");
+    const activeDocuments = this.documents.some((item) => item.folderId === folderId && item.status !== "DELETED");
+    if (activeChildren || activeDocuments) {
+      throw new ConflictException("폴더에 하위 항목이 남아 있어 삭제할 수 없습니다.");
+    }
+    folder.status = "DELETED";
+    folder.deletedAt = new Date().toISOString();
+    folder.updatedAt = folder.deletedAt;
+    folder.updatedBy = actorId;
+    this.recordAudit(actorId, "Folder", folder.id, "DELETE", { name: folder.name });
+    return this.toFolderSummary(folder);
   }
 
-  submitForReview(entryId: string, submissionNote: string | undefined, actorId: string, logAudit = true): ReviewTask {
-    const entry = this.getEntry(entryId);
-    entry.status = "in_review";
-    entry.submittedAt = new Date().toISOString();
-    entry.updatedAt = entry.submittedAt;
-
-    const task: ReviewTask = {
-      id: randomUUID(),
-      entryId,
-      requestedById: actorId,
-      status: "open",
-      submissionNote,
-      createdAt: entry.submittedAt,
-      updatedAt: entry.submittedAt,
+  listFolderChildren(folderId: string): PortalFolderContents {
+    const folder = this.getFolder(folderId);
+    return {
+      folder: this.toFolderSummary(folder),
+      breadcrumb: this.getFolderAncestors(folderId).map((item) => this.toFolderSummary(item)),
+      folders: this.folders
+        .filter((item) => item.parentId === folderId && item.status !== "DELETED")
+        .sort(this.bySortOrder)
+        .map((item) => this.toFolderSummary(item)),
+      documents: this.documents
+        .filter((item) => item.folderId === folderId && item.status !== "DELETED")
+        .sort(this.bySortOrder)
+        .map((item) => this.toDocumentSummary(item)),
     };
-
-    this.reviewTasks.unshift(task);
-    if (logAudit) {
-      this.recordAudit(actorId, "ReviewTask", task.id, "submit", { entryId });
-    }
-    return task;
   }
 
-  listReviewTasks(status?: ReviewTask["status"], reviewerId?: string): ReviewTask[] {
-    return this.reviewTasks.filter((task) => {
-      const matchesStatus = !status || task.status === status;
-      const matchesReviewer = !reviewerId || task.assignedReviewerId === reviewerId;
-      return matchesStatus && matchesReviewer;
+  reorderFolderChildren(folderId: string, items: Array<{ id: string; sortOrder: number }>, actorId: string): PortalFolderContents {
+    this.getFolder(folderId);
+    items.forEach((item) => {
+      const folder = this.folders.find((candidate) => candidate.id === item.id && candidate.parentId === folderId);
+      if (folder) {
+        folder.sortOrder = item.sortOrder;
+        folder.updatedAt = new Date().toISOString();
+        folder.updatedBy = actorId;
+        return;
+      }
+      const document = this.documents.find((candidate) => candidate.id === item.id && candidate.folderId === folderId);
+      if (document) {
+        document.sortOrder = item.sortOrder;
+        document.updatedAt = new Date().toISOString();
+        document.updatedBy = actorId;
+      }
     });
+    this.recordAudit(actorId, "Folder", folderId, "UPDATE", { reordered: items.length });
+    return this.listFolderChildren(folderId);
   }
 
-  getReviewTask(reviewId: string): ReviewTask {
-    const task = this.reviewTasks.find((item) => item.id === reviewId);
-    if (!task) {
-      throw new NotFoundException(`Review task ${reviewId} not found`);
+  createDocument(input: CreateDocumentInput, actorId: string): DocumentDetail {
+    const folder = this.getFolder(input.folderId);
+    if (folder.status === "DELETED") {
+      throw new ConflictException("삭제된 폴더에는 문서를 만들 수 없습니다.");
     }
-    return task;
-  }
-
-  approveReview(reviewId: string, decisionNote: string | undefined, actorId: string, logAudit = true): ReviewTask {
-    const task = this.getReviewTask(reviewId);
-    task.status = "approved";
-    task.assignedReviewerId = actorId;
-    task.decisionNote = decisionNote;
-    task.decidedAt = new Date().toISOString();
-    task.updatedAt = task.decidedAt;
-
-    const entry = this.getEntry(task.entryId);
-    entry.status = "approved";
-    entry.approvedAt = task.decidedAt;
-    entry.updatedAt = task.decidedAt;
-
-    if (logAudit) {
-      this.recordAudit(actorId, "ReviewTask", task.id, "approve", { entryId: entry.id });
-    }
-    return task;
-  }
-
-  rejectReview(reviewId: string, decisionNote: string, actorId: string, logAudit = true): ReviewTask {
-    const task = this.getReviewTask(reviewId);
-    task.status = "rejected";
-    task.assignedReviewerId = actorId;
-    task.decisionNote = decisionNote;
-    task.decidedAt = new Date().toISOString();
-    task.updatedAt = task.decidedAt;
-
-    const entry = this.getEntry(task.entryId);
-    entry.status = "rejected";
-    entry.updatedAt = task.decidedAt;
-
-    if (logAudit) {
-      this.recordAudit(actorId, "ReviewTask", task.id, "reject", { entryId: entry.id });
-    }
-    return task;
-  }
-
-  schedulePublication(
-    entryId: string,
-    payload: { publishMode: "immediate" | "scheduled"; scheduledFor?: string },
-    actorId: string,
-    logAudit = true,
-  ): PublicationSchedule {
-    const entry = this.getEntry(entryId);
-    const revisionId = entry.currentRevisionId ?? this.listRevisions(entryId)[0]?.id;
-    if (!revisionId) {
-      throw new NotFoundException(`Entry ${entryId} has no revisions`);
-    }
-
     const now = new Date().toISOString();
-    const schedule: PublicationSchedule = {
-      id: randomUUID(),
-      entryId,
-      targetRevisionId: revisionId,
-      publishMode: payload.publishMode,
-      scheduledFor: payload.scheduledFor,
-      executedAt: payload.publishMode === "immediate" ? now : undefined,
-      status: payload.publishMode === "immediate" ? "processed" : "pending",
-      createdById: actorId,
+    const documentId = randomUUID();
+    const versionId = randomUUID();
+    const status: DocumentStatus = "DRAFT";
+    const title = input.title.trim();
+    const markdownBody = input.markdownBody.trim();
+    const summary = (input.summary ?? summarizeMarkdown(markdownBody)).trim();
+    const record: DocumentRecord = {
+      id: documentId,
+      folderId: folder.id,
+      title,
+      slug: slugify(title),
+      summary,
+      status,
+      visibilityScope: input.visibilityScope ?? "INTERNAL",
+      sortOrder: this.nextDocumentSortOrder(folder.id),
+      currentVersionId: versionId,
+      createdBy: actorId,
+      updatedBy: actorId,
       createdAt: now,
       updatedAt: now,
+      hasUnpublishedChanges: false,
     };
+    const version: DocumentVersion = {
+      id: versionId,
+      documentId,
+      versionNo: 1,
+      title,
+      markdownBody,
+      renderedExcerpt: summarizeMarkdown(markdownBody),
+      status,
+      changeSummary: input.changeSummary,
+      sourceType: "MANUAL",
+      pdfImportStatus: "NOT_REQUESTED",
+      createdBy: actorId,
+      createdAt: now,
+    };
+    this.documents.push(record);
+    this.versions.push(version);
+    this.recordAudit(actorId, "Document", documentId, "CREATE", { title });
+    return this.getDocumentDetail(documentId);
+  }
 
-    this.publicationSchedules.unshift(schedule);
-    entry.status = payload.publishMode === "immediate" ? "published" : "scheduled";
-    entry.publishedRevisionId = payload.publishMode === "immediate" ? revisionId : entry.publishedRevisionId;
-    entry.publishedAt = payload.publishMode === "immediate" ? now : entry.publishedAt;
-    entry.updatedAt = now;
-
-    if (logAudit) {
-      this.recordAudit(
-        actorId,
-        "PublicationSchedule",
-        schedule.id,
-        payload.publishMode === "immediate" ? "publish" : "schedule",
-        { entryId, scheduledFor: payload.scheduledFor },
-      );
+  updateDocument(documentId: string, input: UpdateDocumentInput, actorId: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    const currentVersion = this.getVersion(record.currentVersionId);
+    if (input.expectedVersionId && input.expectedVersionId !== currentVersion.id) {
+      throw new ConflictException("최신 버전이 이미 존재합니다. 다시 불러온 뒤 저장하세요.");
     }
-    return schedule;
+    const targetFolder = input.folderId ? this.getFolder(input.folderId) : this.getFolder(record.folderId);
+    const nextTitle = input.title?.trim() || record.title;
+    const nextBody = input.markdownBody?.trim() || currentVersion.markdownBody;
+    const now = new Date().toISOString();
+    const nextStatus = record.status === "PUBLISHED" ? "PUBLISHED" : "DRAFT";
+    const newVersion: DocumentVersion = {
+      id: randomUUID(),
+      documentId,
+      versionNo: this.listVersions(documentId).length + 1,
+      title: nextTitle,
+      markdownBody: nextBody,
+      renderedExcerpt: summarizeMarkdown(nextBody),
+      status: nextStatus,
+      changeSummary: input.changeSummary,
+      sourceType: "MANUAL",
+      pdfImportStatus: "NOT_REQUESTED",
+      createdBy: actorId,
+      createdAt: now,
+    };
+    this.versions.push(newVersion);
+    record.folderId = targetFolder.id;
+    record.title = nextTitle;
+    record.slug = slugify(nextTitle);
+    record.summary = (input.summary ?? summarizeMarkdown(nextBody)).trim();
+    record.visibilityScope = input.visibilityScope ?? record.visibilityScope;
+    record.currentVersionId = newVersion.id;
+    record.updatedAt = now;
+    record.updatedBy = actorId;
+    record.hasUnpublishedChanges = record.status === "PUBLISHED";
+    if (record.status !== "PUBLISHED") {
+      record.status = "DRAFT";
+    }
+    this.recordAudit(actorId, "Document", documentId, "UPDATE", { versionId: newVersion.id });
+    return this.getDocumentDetail(documentId);
   }
 
-  unpublishEntry(entryId: string, reason: string | undefined, actorId: string): ContentEntry {
-    const entry = this.getEntry(entryId);
-    entry.status = "archived";
-    entry.archivedAt = new Date().toISOString();
-    entry.updatedAt = entry.archivedAt;
-    this.recordAudit(actorId, "ContentEntry", entryId, "unpublish", { reason });
-    return entry;
+  getDocumentDetail(documentId: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    const version = this.getVersion(record.currentVersionId);
+    return {
+      ...this.toDocumentSummary(record),
+      markdownBody: version.markdownBody,
+      renderedBody: renderMarkdownToHtml(version.markdownBody),
+      folderPath: this.getFolder(record.folderId).path,
+      publishedAt: record.publishedAt ?? null,
+      attachments: this.listAttachmentSummaries(documentId),
+      versions: this.listVersions(documentId),
+    };
   }
 
-  listPublicationSchedules(): PublicationSchedule[] {
-    return [...this.publicationSchedules];
+  getDocument(documentId: string): DocumentRecord {
+    const record = this.documents.find((item) => item.id === documentId);
+    if (!record) {
+      throw new NotFoundException(`Document ${documentId} not found`);
+    }
+    return record;
   }
 
-  recordAudit(
-    actorId: string,
-    entityType: AuditEvent["entityType"],
-    entityId: string,
-    action: AuditAction,
-    metadata?: Record<string, unknown>,
-  ): AuditEvent {
+  deleteDocument(documentId: string, actorId: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    record.status = "DELETED";
+    record.deletedAt = new Date().toISOString();
+    record.updatedAt = record.deletedAt;
+    record.updatedBy = actorId;
+    record.hasUnpublishedChanges = false;
+    this.attachments
+      .filter((item) => item.documentId === documentId && item.status !== "DELETED")
+      .forEach((attachment) => {
+        attachment.status = "DELETED";
+        attachment.deletedAt = record.deletedAt;
+      });
+    this.recordAudit(actorId, "Document", documentId, "DELETE", { title: record.title });
+    return this.getDocumentDetail(documentId);
+  }
+
+  submitReview(documentId: string, comment: string | undefined, actorId: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    if (record.status !== "DRAFT" && !(record.status === "PUBLISHED" && record.hasUnpublishedChanges)) {
+      throw new ConflictException("검토 요청은 초안 상태에서만 가능합니다.");
+    }
+    record.status = "IN_REVIEW";
+    record.updatedAt = new Date().toISOString();
+    record.updatedBy = actorId;
+    this.recordAudit(actorId, "Document", documentId, "SUBMIT_REVIEW", { comment });
+    return this.getDocumentDetail(documentId);
+  }
+
+  approveDocument(documentId: string, comment: string | undefined, actorId: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    if (record.status !== "IN_REVIEW") {
+      throw new ConflictException("검토 중 문서만 승인할 수 있습니다.");
+    }
+    record.status = "APPROVED";
+    record.lastReviewedAt = new Date().toISOString();
+    record.lastReviewedBy = actorId;
+    record.updatedAt = record.lastReviewedAt;
+    this.recordAudit(actorId, "Document", documentId, "APPROVE", { comment });
+    return this.getDocumentDetail(documentId);
+  }
+
+  publishDocument(documentId: string, actorId: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    if (record.status !== "APPROVED" && !(record.status === "PUBLISHED" && record.hasUnpublishedChanges)) {
+      throw new ConflictException("승인된 문서만 발행할 수 있습니다.");
+    }
+    record.status = "PUBLISHED";
+    record.publishedVersionId = record.currentVersionId;
+    record.publishedAt = new Date().toISOString();
+    record.publishedBy = actorId;
+    record.updatedAt = record.publishedAt;
+    record.updatedBy = actorId;
+    record.hasUnpublishedChanges = false;
+    this.recordAudit(actorId, "Document", documentId, "PUBLISH", { versionId: record.currentVersionId });
+    return this.getDocumentDetail(documentId);
+  }
+
+  unpublishDocument(documentId: string, actorId: string, reason?: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    if (record.status !== "PUBLISHED") {
+      throw new ConflictException("발행된 문서만 게시중단할 수 있습니다.");
+    }
+    record.status = "UNPUBLISHED";
+    record.updatedAt = new Date().toISOString();
+    record.updatedBy = actorId;
+    this.recordAudit(actorId, "Document", documentId, "UNPUBLISH", { reason });
+    return this.getDocumentDetail(documentId);
+  }
+
+  createAttachment(documentId: string, input: CreateAttachmentInput, actorId: string): AttachmentSummary {
+    const record = this.getDocument(documentId);
+    if (record.status === "DELETED") {
+      throw new ConflictException("삭제된 문서에는 첨부파일을 추가할 수 없습니다.");
+    }
+    const now = new Date().toISOString();
+    const extension = input.fileName.includes(".") ? input.fileName.split(".").pop() ?? "bin" : "bin";
+    const contentType = input.contentType ?? guessContentType(extension);
+    const attachment: Attachment = {
+      id: randomUUID(),
+      documentId,
+      storageProvider: "mock-s3",
+      storageBucket: "cms-assets",
+      storageKey: `${documentId}/${randomUUID()}-${input.fileName}`,
+      originalFilename: input.fileName,
+      contentType,
+      extension,
+      fileSize: input.fileSize ?? 128_000,
+      checksum: createHash("sha1").update(`${documentId}:${input.fileName}:${now}`).digest("hex"),
+      status: extension === "pdf" && input.fileName.toLowerCase().includes("encrypted") ? "ORPHANED" : "ACTIVE",
+      virusScanStatus: "PASSED",
+      linkRole: input.linkRole ?? "REFERENCE_FILE",
+      createdBy: actorId,
+      createdAt: now,
+      url: `https://download.example.com/assets/${documentId}/${encodeURIComponent(input.fileName)}`,
+    };
+    this.attachments.push(attachment);
+    this.recordAudit(actorId, "Attachment", attachment.id, "CREATE", { documentId, fileName: attachment.originalFilename });
+    return this.toAttachmentSummary(attachment);
+  }
+
+  deleteAttachment(attachmentId: string, actorId: string): AttachmentSummary {
+    const attachment = this.getAttachment(attachmentId);
+    attachment.status = "DELETED";
+    attachment.deletedAt = new Date().toISOString();
+    this.recordAudit(actorId, "Attachment", attachment.id, "DELETE", { fileName: attachment.originalFilename });
+    return this.toAttachmentSummary(attachment);
+  }
+
+  getAttachmentRedirect(attachmentId: string, actorId?: string): string {
+    const attachment = this.getAttachment(attachmentId);
+    if (attachment.status !== "ACTIVE") {
+      throw new ConflictException("다운로드할 수 없는 첨부파일입니다.");
+    }
+    if (actorId) {
+      this.recordAudit(actorId, "Attachment", attachment.id, "DOWNLOAD", { documentId: attachment.documentId });
+    }
+    return attachment.url;
+  }
+
+  getPortalTree(): FolderSummary[] {
+    return this.folders
+      .filter((folder) => folder.parentId === null && this.isPortalFolderVisible(folder))
+      .sort(this.bySortOrder)
+      .map((folder) => this.toFolderSummary(folder));
+  }
+
+  getPortalFolder(folderId: string): PortalFolderContents {
+    const folder = this.getFolder(folderId);
+    if (!this.isPortalFolderVisible(folder)) {
+      throw new NotFoundException("포털에서 접근할 수 없는 폴더입니다.");
+    }
+    return {
+      folder: this.toFolderSummary(folder),
+      breadcrumb: this.getFolderAncestors(folderId)
+        .filter((item) => this.isPortalFolderVisible(item))
+        .map((item) => this.toFolderSummary(item)),
+      folders: this.folders
+        .filter((item) => item.parentId === folderId && this.isPortalFolderVisible(item))
+        .sort(this.bySortOrder)
+        .map((item) => this.toFolderSummary(item)),
+      documents: this.documents
+        .filter((item) => item.folderId === folderId && this.isPortalDocumentVisible(item))
+        .sort(this.bySortOrder)
+        .map((item) => this.toDocumentSummary(item)),
+    };
+  }
+
+  getPortalDocument(documentId: string): DocumentDetail {
+    const record = this.getDocument(documentId);
+    if (!this.isPortalDocumentVisible(record)) {
+      throw new NotFoundException("포털에서 접근할 수 없는 문서입니다.");
+    }
+    const publishedVersion = record.publishedVersionId ? this.getVersion(record.publishedVersionId) : this.getVersion(record.currentVersionId);
+    return {
+      ...this.toDocumentSummary(record),
+      markdownBody: publishedVersion.markdownBody,
+      renderedBody: renderMarkdownToHtml(publishedVersion.markdownBody),
+      folderPath: this.getFolder(record.folderId).path,
+      publishedAt: record.publishedAt ?? null,
+      attachments: this.listAttachmentSummaries(documentId).filter((item) => item.status === "ACTIVE"),
+      versions: [],
+    };
+  }
+
+  searchDocuments(query: string, page = 1, size = 20): { total: number; items: SearchResult[] } {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      throw new BadRequestException("검색어를 입력하세요.");
+    }
+    if (normalized.length > 100) {
+      throw new BadRequestException("검색어는 100자 이하로 입력하세요.");
+    }
+    const results = this.documents
+      .filter((record) => this.isPortalDocumentVisible(record))
+      .map((record) => {
+        const publishedVersion = record.publishedVersionId ? this.getVersion(record.publishedVersionId) : this.getVersion(record.currentVersionId);
+        const haystack = `${record.title}\n${publishedVersion.markdownBody}`.toLowerCase();
+        const titleMatch = record.title.toLowerCase().includes(normalized);
+        const bodyMatch = haystack.includes(normalized);
+        if (!titleMatch && !bodyMatch) {
+          return null;
+        }
+        return {
+          documentId: record.id,
+          title: record.title,
+          folderPath: this.getFolder(record.folderId).path.join(" / "),
+          summary: summarizeSearchHit(publishedVersion.markdownBody, normalized),
+          updatedAt: record.updatedAt,
+          score: titleMatch ? 1 : 0.6,
+        } satisfies SearchResult;
+      })
+      .filter((item): item is SearchResult => Boolean(item))
+      .sort((left, right) => right.score - left.score || right.updatedAt.localeCompare(left.updatedAt));
+    const start = (Math.max(page, 1) - 1) * size;
+    return {
+      total: results.length,
+      items: results.slice(start, start + size),
+    };
+  }
+
+  getHealthStatus() {
+    return {
+      status: this.backupRuns.some((item) => item.status === "PARTIAL_FAILURE") ? "DEGRADED" : "UP",
+      checkedAt: new Date().toISOString(),
+      components: [
+        { name: "application", status: "UP" },
+        { name: "postgresql", status: "UP" },
+        { name: "object-storage", status: "UP" },
+      ],
+    };
+  }
+
+  listBackups(): BackupRun[] {
+    return [...this.backupRuns].sort((left, right) => right.startedAt.localeCompare(left.startedAt));
+  }
+
+  startBackup(actorId: string): BackupRun {
+    const now = new Date().toISOString();
+    const run: BackupRun = {
+      id: randomUUID(),
+      runType: "MANUAL",
+      status: "RUNNING",
+      validationStatus: "PENDING",
+      startedAt: now,
+      completedAt: null,
+      databaseArtifactUri: `s3://cms-backups/${now}/db.sql.gz`,
+      fileArtifactUri: `s3://cms-backups/${now}/assets.tar.gz`,
+      retentionExpiresAt: this.shiftDays(14),
+      triggeredBy: actorId,
+    };
+    this.backupRuns.unshift(run);
+    run.status = "SUCCEEDED";
+    run.validationStatus = "PASSED";
+    run.completedAt = this.shiftMinutes(2);
+    this.recordAudit(actorId, "BackupRun", run.id, "BACKUP", { runType: run.runType });
+    return run;
+  }
+
+  restoreBackup(backupRunId: string, actorId: string): RestoreRun {
+    const backup = this.backupRuns.find((item) => item.id === backupRunId);
+    if (!backup) {
+      throw new NotFoundException(`Backup ${backupRunId} not found`);
+    }
+    const restore: RestoreRun = {
+      id: randomUUID(),
+      backupRunId,
+      status: "SUCCEEDED",
+      targetEnvironment: "staging",
+      validationReport: "문서, 첨부파일, 감사기록 참조 정합성 확인 완료",
+      triggeredBy: actorId,
+      startedAt: new Date().toISOString(),
+      completedAt: this.shiftMinutes(3),
+    };
+    this.restoreRuns.unshift(restore);
+    this.recordAudit(actorId, "RestoreRun", restore.id, "RESTORE", { backupRunId });
+    return restore;
+  }
+
+  listSoftwareInventory(): SoftwareInventoryItem[] {
+    return [...this.softwareInventory];
+  }
+
+  createSoftwareInventoryItem(actorId: string, input: Partial<SoftwareInventoryItem>): SoftwareInventoryItem {
+    const item: SoftwareInventoryItem = {
+      id: randomUUID(),
+      componentName: input.componentName ?? "신규 구성요소",
+      componentType: input.componentType ?? "LIBRARY",
+      version: input.version ?? "0.1.0",
+      licenseName: input.licenseName ?? "Unknown",
+      licenseStatus: input.licenseStatus ?? "CONDITIONAL",
+      vulnerabilitySummary: input.vulnerabilitySummary ?? "검토 필요",
+      riskLevel: input.riskLevel ?? "MEDIUM",
+      approvedBy: input.approvedBy,
+      approvedAt: input.approvedAt,
+      notes: input.notes,
+    };
+    this.softwareInventory.unshift(item);
+    this.recordAudit(actorId, "SoftwareInventoryItem", item.id, "CREATE", { componentName: item.componentName });
+    return item;
+  }
+
+  listDeployments(): DeploymentRelease[] {
+    return [...this.deployments];
+  }
+
+  listSchedules(): ProjectSchedule[] {
+    return [...this.schedules];
+  }
+
+  createSchedule(actorId: string, input: Partial<ProjectSchedule>): ProjectSchedule {
+    const item: ProjectSchedule = {
+      id: randomUUID(),
+      name: input.name ?? "신규 일정",
+      phase: input.phase ?? "계획",
+      ownerName: input.ownerName ?? "미정",
+      plannedStartDate: input.plannedStartDate ?? new Date().toISOString().slice(0, 10),
+      plannedEndDate: input.plannedEndDate ?? this.shiftDays(7).slice(0, 10),
+      status: input.status ?? "ON_TRACK",
+      mitigationPlan: input.mitigationPlan,
+    };
+    this.schedules.unshift(item);
+    this.recordAudit(actorId, "ProjectSchedule", item.id, "CREATE", { name: item.name });
+    return item;
+  }
+
+  listScopeItems(): ScopeItem[] {
+    return [...this.scopeItems];
+  }
+
+  listStaffAssignments(): StaffAssignment[] {
+    return [...this.staffAssignments];
+  }
+
+  listRisks(): RiskIssue[] {
+    return [...this.risks];
+  }
+
+  listDeliverables(): Deliverable[] {
+    return [...this.deliverables];
+  }
+
+  listChangeRequests(): ChangeRequest[] {
+    return [...this.changeRequests];
+  }
+
+  createChangeRequest(actorId: string, input: Partial<ChangeRequest>): ChangeRequest {
+    const impactAnalysis = input.impactAnalysis ?? "";
+    const status = impactAnalysis.trim() ? "READY_FOR_APPROVAL" : "ANALYSIS_REQUIRED";
+    const item: ChangeRequest = {
+      id: randomUUID(),
+      title: input.title ?? "신규 변경 요청",
+      requester: input.requester ?? this.getUser(actorId).displayName,
+      impactAnalysis,
+      status,
+      requestedAt: new Date().toISOString(),
+      approvedAt: status === "READY_FOR_APPROVAL" && input.status === "APPROVED" ? new Date().toISOString() : undefined,
+    };
+    this.changeRequests.unshift(item);
+    this.recordAudit(actorId, "ChangeRequest", item.id, "CREATE", { title: item.title, status: item.status });
+    return item;
+  }
+
+  listAuditEvents(): AuditEvent[] {
+    return [...this.auditEvents].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }
+
+  getDashboardSummary() {
+    const publishedCount = this.documents.filter((item) => this.isPortalDocumentVisible(item)).length;
+    const reviewQueue = this.documents.filter((item) => item.status === "IN_REVIEW");
+    return {
+      highlights: [
+        { key: "published", label: "최근 게시 문서", value: String(publishedCount), tone: "accent" as const },
+        { key: "review", label: "검토 대기", value: String(reviewQueue.length), tone: "warning" as const },
+        {
+          key: "backup",
+          label: "최근 백업",
+          value: this.backupRuns[0]?.status ?? "NONE",
+          tone: this.backupRuns[0]?.status === "SUCCEEDED" ? ("success" as const) : ("warning" as const),
+        },
+        { key: "risk", label: "오픈 리스크", value: String(this.risks.filter((item) => item.status !== "CLOSED").length), tone: "neutral" as const },
+      ],
+      recentPublications: this.documents
+        .filter((item) => item.publishedAt)
+        .sort((left, right) => (right.publishedAt ?? "").localeCompare(left.publishedAt ?? ""))
+        .slice(0, 4)
+        .map((item) => ({
+          id: item.id,
+          title: item.title,
+          folderPath: this.getFolder(item.folderId).path.join(" / "),
+          updatedAt: item.updatedAt,
+          status: item.status,
+        })),
+      reviewQueue: reviewQueue.map((item) => ({
+        id: item.id,
+        title: item.title,
+        updatedAt: item.updatedAt,
+        folderPath: this.getFolder(item.folderId).path.join(" / "),
+      })),
+      backups: this.listBackups().slice(0, 3),
+      risks: this.listRisks().slice(0, 3),
+      deployments: this.listDeployments().slice(0, 3),
+    };
+  }
+
+  recordAudit(actorId: string, entityType: string, entityId: string, action: AuditAction, metadata?: Record<string, unknown>): AuditEvent {
     const event: AuditEvent = {
       id: randomUUID(),
       workspaceId: this.workspace.id,
@@ -688,94 +982,374 @@ export class MockCmsStoreService {
     return event;
   }
 
-  listAuditEvents(): AuditEvent[] {
-    return [...this.auditEvents];
-  }
-
-  getDashboardSummary(): DashboardSummary {
-    const reviewQueue = this.reviewTasks.filter((item) => item.status === "open").length;
-    const scheduled = this.entries.filter((item) => item.status === "scheduled").length;
-    const publishedToday = this.entries.filter((item) => item.publishedAt?.slice(0, 10) === new Date().toISOString().slice(0, 10)).length;
-    const failedUploads = this.assets.filter((item) => item.status === "failed").length;
-
+  private createUser(id: string, email: string, displayName: string, role: User["role"], now: string): User {
     return {
-      kpis: [
-        { key: "reviewQueue", label: "Review Queue", value: reviewQueue, trend: "+2 since yesterday" },
-        { key: "scheduled", label: "Scheduled", value: scheduled, trend: "Next wave in 45m" },
-        { key: "publishedToday", label: "Published Today", value: publishedToday, trend: "Steady cadence" },
-        { key: "failedUploads", label: "Failed Uploads", value: failedUploads, trend: failedUploads ? "Needs attention" : "All clear" },
-      ],
-      recentEntries: this.listEntries({})
-        .slice(0, 4)
-        .map((entry) => ({
-          id: entry.id,
-          title: entry.title,
-          status: entry.status,
-          updatedAt: entry.updatedAt,
-          authorName: this.getUser(entry.authorId).displayName,
-          contentType: entry.contentType,
-          thumbnailUrl: entry.representativeAssetId ? this.getAsset(entry.representativeAssetId).thumbnailUrl : undefined,
-        })),
-      upcomingPublications: this.publicationSchedules
-        .filter((item) => item.publishMode === "scheduled")
-        .slice(0, 4)
-        .map((item) => {
-          const entry = this.getEntry(item.entryId);
-          return {
-            id: item.id,
-            title: entry.title,
-            scheduledFor: item.scheduledFor ?? item.createdAt,
-            status: entry.status,
-          };
-        }),
-      recentAssets: this.listAssets()
-        .slice(0, 6)
-        .map((asset) => ({
-          id: asset.id,
-          fileName: asset.fileName,
-          thumbnailUrl: asset.thumbnailUrl,
-          altText: asset.altText,
-        })),
-      activity: this.auditEvents.slice(0, 6).map((event) => ({
-        id: event.id,
-        action: event.action,
-        actorName: this.getUser(event.actorId).displayName,
-        entityLabel: `${event.entityType} ${event.entityId.slice(0, 8)}`,
-        createdAt: event.createdAt,
-      })),
+      id,
+      workspaceId: this.workspace.id,
+      email,
+      displayName,
+      role,
+      status: "ACTIVE",
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
     };
   }
 
-  private createRevision(
-    entryId: string,
-    editorId: string,
-    payload: {
-      title: string;
-      summary: string;
-      body: EntryRevision["body"];
-      seoTitle?: string;
-      seoDescription?: string;
-      representativeAssetId?: string;
-      tagIds?: string[];
-      changeNote?: string;
-    },
-    versionNumber: number,
-  ): EntryRevision {
-    const revision: EntryRevision = {
-      id: randomUUID(),
-      entryId,
-      versionNumber,
-      editorId,
-      title: payload.title,
-      summary: payload.summary,
-      body: payload.body,
-      seoTitle: payload.seoTitle,
-      seoDescription: payload.seoDescription,
-      selectedAssetIds: [payload.representativeAssetId, ...(payload.tagIds ?? [])].filter(Boolean) as string[],
-      changeNote: payload.changeNote,
-      createdAt: new Date().toISOString(),
+  private toSession(user: User): SessionUser {
+    return {
+      id: user.id,
+      workspaceId: user.workspaceId,
+      email: user.email,
+      displayName: user.displayName,
+      role: user.role,
+      token: user.email,
     };
-    this.revisions.push(revision);
-    return revision;
   }
+
+  private seedFolder(
+    input: CreateFolderInput & { status: FolderStatus; sortOrder: number },
+    actorId: string,
+  ): Folder {
+    const now = new Date().toISOString();
+    const parent = input.parentId ? this.folders.find((item) => item.id === input.parentId) ?? null : null;
+    const folder: Folder = {
+      id: randomUUID(),
+      parentId: input.parentId,
+      name: input.name,
+      slug: slugify(input.name),
+      status: input.status,
+      sortOrder: input.sortOrder,
+      depth: parent ? parent.depth + 1 : 0,
+      path: parent ? [...parent.path, input.name] : [input.name],
+      createdBy: actorId,
+      updatedBy: actorId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.folders.push(folder);
+    return folder;
+  }
+
+  private seedDocument(input: CreateDocumentInput, actorId: string): DocumentDetail {
+    return this.createDocument(input, actorId);
+  }
+
+  private seedAudit(actorId: string, entityType: string, entityId: string, action: AuditAction, metadata?: Record<string, unknown>) {
+    this.auditEvents.push({
+      id: randomUUID(),
+      workspaceId: this.workspace.id,
+      actorId,
+      entityType,
+      entityId,
+      action,
+      metadata,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  private getFolder(folderId: string): Folder {
+    const folder = this.folders.find((item) => item.id === folderId);
+    if (!folder) {
+      throw new NotFoundException(`Folder ${folderId} not found`);
+    }
+    return folder;
+  }
+
+  private getAttachment(attachmentId: string): Attachment {
+    const attachment = this.attachments.find((item) => item.id === attachmentId);
+    if (!attachment) {
+      throw new NotFoundException(`Attachment ${attachmentId} not found`);
+    }
+    return attachment;
+  }
+
+  private getVersion(versionId: string): DocumentVersion {
+    const version = this.versions.find((item) => item.id === versionId);
+    if (!version) {
+      throw new NotFoundException(`Version ${versionId} not found`);
+    }
+    return version;
+  }
+
+  private listVersions(documentId: string): DocumentVersion[] {
+    return this.versions
+      .filter((item) => item.documentId === documentId)
+      .sort((left, right) => right.versionNo - left.versionNo);
+  }
+
+  private listAttachmentSummaries(documentId: string): AttachmentSummary[] {
+    return this.attachments
+      .filter((item) => item.documentId === documentId)
+      .map((item) => this.toAttachmentSummary(item));
+  }
+
+  private toFolderSummary(folder: Folder): FolderSummary {
+    return {
+      id: folder.id,
+      parentId: folder.parentId,
+      name: folder.name,
+      status: folder.status,
+      sortOrder: folder.sortOrder,
+      hasChildren: this.folders.some((item) => item.parentId === folder.id && item.status !== "DELETED"),
+      childDocumentCount: this.documents.filter((item) => item.folderId === folder.id && item.status !== "DELETED").length,
+    };
+  }
+
+  private toAttachmentSummary(attachment: Attachment): AttachmentSummary {
+    return {
+      id: attachment.id,
+      originalFilename: attachment.originalFilename,
+      contentType: attachment.contentType,
+      fileSize: attachment.fileSize,
+      status: attachment.status,
+      downloadUrl: attachment.status === "ACTIVE" ? `/api/v1/portal/attachments/${attachment.id}/download` : null,
+    };
+  }
+
+  private toDocumentSummary(record: DocumentRecord): DocumentSummary {
+    return {
+      id: record.id,
+      folderId: record.folderId,
+      title: record.title,
+      slug: record.slug,
+      summary: record.summary,
+      status: record.status,
+      visibilityScope: record.visibilityScope,
+      sortOrder: record.sortOrder,
+      updatedAt: record.updatedAt,
+      hasUnpublishedChanges: record.hasUnpublishedChanges,
+    };
+  }
+
+  private assertFolderNameUnique(name: string, parentId: string | null, excludeId?: string) {
+    const normalized = name.trim().toLowerCase();
+    const duplicate = this.folders.find(
+      (item) =>
+        item.id !== excludeId &&
+        item.parentId === parentId &&
+        item.status !== "DELETED" &&
+        item.name.trim().toLowerCase() === normalized,
+    );
+    if (duplicate) {
+      throw new ConflictException("같은 위치에 동일한 이름의 폴더가 이미 존재합니다.");
+    }
+  }
+
+  private refreshFolderPaths() {
+    const walk = (folder: Folder, parent: Folder | null) => {
+      folder.depth = parent ? parent.depth + 1 : 0;
+      folder.path = parent ? [...parent.path, folder.name] : [folder.name];
+      this.folders
+        .filter((item) => item.parentId === folder.id)
+        .forEach((child) => walk(child, folder));
+    };
+    this.folders
+      .filter((item) => item.parentId === null)
+      .forEach((root) => walk(root, null));
+  }
+
+  private getFolderAncestors(folderId: string): Folder[] {
+    const folder = this.getFolder(folderId);
+    const chain: Folder[] = [];
+    let current: Folder | undefined = folder;
+    while (current) {
+      chain.unshift(current);
+      current = current.parentId ? this.folders.find((item) => item.id === current.parentId) : undefined;
+    }
+    return chain;
+  }
+
+  private nextFolderSortOrder(parentId: string | null): number {
+    const siblings = this.folders.filter((item) => item.parentId === parentId && item.status !== "DELETED");
+    return (siblings.at(-1)?.sortOrder ?? 0) + 10;
+  }
+
+  private nextDocumentSortOrder(folderId: string): number {
+    const siblings = this.documents.filter((item) => item.folderId === folderId && item.status !== "DELETED");
+    return (siblings.at(-1)?.sortOrder ?? 0) + 10;
+  }
+
+  private isPortalFolderVisible(folder: Folder): boolean {
+    return folder.status === "ACTIVE";
+  }
+
+  private isPortalDocumentVisible(record: DocumentRecord): boolean {
+    const folder = this.getFolder(record.folderId);
+    return record.status === "PUBLISHED" && record.visibilityScope === "PUBLIC" && folder.status === "ACTIVE";
+  }
+
+  private shiftMinutes(offset: number): string {
+    return new Date(Date.now() + offset * 60_000).toISOString();
+  }
+
+  private shiftDays(offset: number): string {
+    return new Date(Date.now() + offset * 24 * 60_000 * 60).toISOString();
+  }
+
+  private readonly bySortOrder = <T extends { sortOrder: number }>(left: T, right: T) => left.sortOrder - right.sortOrder;
+}
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function summarizeMarkdown(markdown: string): string {
+  return markdown
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/[#>*_`|[\]-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 140);
+}
+
+function summarizeSearchHit(markdown: string, query: string): string {
+  const plain = summarizeMarkdown(markdown);
+  const index = plain.toLowerCase().indexOf(query.toLowerCase());
+  if (index < 0) {
+    return plain.slice(0, 120);
+  }
+  const start = Math.max(0, index - 30);
+  const end = Math.min(plain.length, index + query.length + 60);
+  return plain.slice(start, end);
+}
+
+function guessContentType(extension: string): string {
+  switch (extension.toLowerCase()) {
+    case "pdf":
+      return "application/pdf";
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "md":
+      return "text/markdown";
+    default:
+      return "application/octet-stream";
+  }
+}
+
+function renderMarkdownToHtml(markdown: string): string {
+  const lines = markdown.split("\n");
+  const html: string[] = [];
+  let inList = false;
+  let inCode = false;
+  let tableBuffer: string[][] = [];
+
+  const flushList = () => {
+    if (inList) {
+      html.push("</ul>");
+      inList = false;
+    }
+  };
+
+  const flushTable = () => {
+    if (tableBuffer.length > 0) {
+      const [header, ...rows] = tableBuffer;
+      html.push("<table><thead><tr>");
+      header.forEach((cell) => html.push(`<th>${escapeHtml(cell)}</th>`));
+      html.push("</tr></thead><tbody>");
+      rows.forEach((row) => {
+        html.push("<tr>");
+        row.forEach((cell) => html.push(`<td>${escapeHtml(cell)}</td>`));
+        html.push("</tr>");
+      });
+      html.push("</tbody></table>");
+      tableBuffer = [];
+    }
+  };
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trimEnd();
+    if (line.startsWith("```")) {
+      flushList();
+      flushTable();
+      if (!inCode) {
+        html.push("<pre><code>");
+        inCode = true;
+      } else {
+        html.push("</code></pre>");
+        inCode = false;
+      }
+      return;
+    }
+
+    if (inCode) {
+      html.push(`${escapeHtml(line)}\n`);
+      return;
+    }
+
+    if (line.startsWith("|") && line.endsWith("|")) {
+      flushList();
+      const cells = line
+        .split("|")
+        .slice(1, -1)
+        .map((cell) => cell.trim());
+      if (!cells.every((cell) => /^-+$/.test(cell.replace(/:/g, "")))) {
+        tableBuffer.push(cells);
+      }
+      return;
+    }
+
+    flushTable();
+
+    if (!line) {
+      flushList();
+      html.push("<br />");
+      return;
+    }
+
+    if (line.startsWith("- ")) {
+      if (!inList) {
+        html.push("<ul>");
+        inList = true;
+      }
+      html.push(`<li>${inlineMarkdown(line.slice(2))}</li>`);
+      return;
+    }
+
+    flushList();
+
+    if (line.startsWith("# ")) {
+      html.push(`<h1>${inlineMarkdown(line.slice(2))}</h1>`);
+      return;
+    }
+    if (line.startsWith("## ")) {
+      html.push(`<h2>${inlineMarkdown(line.slice(3))}</h2>`);
+      return;
+    }
+    if (line.startsWith("> ")) {
+      html.push(`<blockquote>${inlineMarkdown(line.slice(2))}</blockquote>`);
+      return;
+    }
+    html.push(`<p>${inlineMarkdown(line)}</p>`);
+  });
+
+  flushList();
+  flushTable();
+  if (inCode) {
+    html.push("</code></pre>");
+  }
+  return html.join("");
+}
+
+function inlineMarkdown(value: string): string {
+  return escapeHtml(value)
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<span class="md-image">$1 ($2)</span>')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

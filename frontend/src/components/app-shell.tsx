@@ -6,15 +6,11 @@ import { ReactNode } from "react";
 import { useSessionStore } from "@/lib/session-store";
 
 const primaryNav = [
-  { href: "/dashboard", label: "Dashboard", badge: "4" },
-  { href: "/entries", label: "Entries", badge: "12" },
-  { href: "/review", label: "Review", badge: "2" },
-  { href: "/media", label: "Media", badge: "18" },
-];
-
-const secondaryNav = [
-  { href: "/users", label: "Users" },
-  { href: "/settings", label: "Settings" },
+  { href: "/dashboard", label: "Dashboard", badge: "요약" },
+  { href: "/content", label: "Content", badge: "문서" },
+  { href: "/attachments", label: "Attachments", badge: "파일" },
+  { href: "/operations", label: "Operations", badge: "백업" },
+  { href: "/governance", label: "Governance", badge: "통제" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -22,45 +18,60 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { session } = useSessionStore();
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <span className="eyebrow">Image-led Ops</span>
-          <h1>Northstar CMS</h1>
-          <p>콘텐츠 작성, 검수, 발행, 미디어 운영을 한 흐름으로 묶은 관리자 콘솔</p>
+    <div className="admin-shell">
+      <aside className="admin-rail">
+        <div className="brand-panel">
+          <span className="eyebrow">Markdown CMS</span>
+          <h1>Northstar</h1>
+          <p>문서 작성, 발행, 검색, 첨부, 운영 통제를 하나의 관리자 콘솔에서 관리합니다.</p>
         </div>
 
-        <div className="nav-section nav-list">
-          {primaryNav.map((item) => (
-            <Link key={item.href} href={item.href} className="nav-link" data-active={pathname.startsWith(item.href)}>
-              <span>{item.label}</span>
-              <span className="nav-badge">{item.badge}</span>
-            </Link>
-          ))}
-        </div>
+        <nav className="admin-nav" aria-label="관리자 내비게이션">
+          {primaryNav.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <Link key={item.href} href={item.href} className="nav-link" data-active={active}>
+                <span>{item.label}</span>
+                <span className="nav-badge">{item.badge}</span>
+              </Link>
+            );
+          })}
+        </nav>
 
-        <div className="nav-section nav-secondary">
-          {secondaryNav.map((item) => (
-            <a key={item.href} href={item.href} className="nav-link" data-active="false">
-              <span>{item.label}</span>
-            </a>
-          ))}
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="workspace-card">
-            <span className="eyebrow">Workspace</span>
-            <h3>Northstar</h3>
-            <p className="muted">Asia/Seoul • 1 active workspace</p>
+        <div className="rail-footer">
+          <div className="info-card compact">
+            <span className="eyebrow subtle">Review Queue</span>
+            <strong>문서 상태 전이와 감사 이력이 우측 패널 없이도 바로 보이도록 구성</strong>
           </div>
-          <div className="workspace-card">
+          <div className="info-card compact">
             <span className="mini-badge">{session.role}</span>
-            <h3>{session.displayName}</h3>
-            <p className="muted">{session.email}</p>
+            <strong>{session.displayName}</strong>
+            <p>{session.email}</p>
           </div>
         </div>
       </aside>
-      <main className="main">{children}</main>
+
+      <main className="admin-main">
+        <header className="topbar">
+          <div>
+            <span className="topbar-kicker">Current Workspace</span>
+            <h2>정책 / 운영 / 발행 흐름</h2>
+          </div>
+          <div className="topbar-actions">
+            <div className="search-pill" aria-label="전역 검색">
+              <span>Search</span>
+              <strong>제목, 본문, 변경 요청</strong>
+            </div>
+            <Link href="/content" className="status-chip">
+              검토 대기 0건
+            </Link>
+            <Link href="/portal" className="button-secondary">
+              Portal 보기
+            </Link>
+          </div>
+        </header>
+        <div className="page-frame">{children}</div>
+      </main>
     </div>
   );
 }

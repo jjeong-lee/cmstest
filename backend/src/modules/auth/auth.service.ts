@@ -7,7 +7,7 @@ export class AuthService {
 
   login(email: string) {
     const user = this.store.findUserByEmail(email);
-    if (!user || user.status !== "active") {
+    if (!user || user.status !== "ACTIVE") {
       throw new UnauthorizedException("Invalid credentials");
     }
 
