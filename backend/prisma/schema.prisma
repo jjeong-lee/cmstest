@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  editor
+  reviewer
+  publisher
+}
+
+enum UserStatus {
+  active
+  invited
+  disabled
+}
+
+enum EntryStatus {
+  draft
+  in_review
+  approved
+  scheduled
+  published
+  archived
+  rejected
+}
+
+enum ReviewStatus {
+  open
+  approved
+  rejected
+  cancelled
+}
+
+enum PublishMode {
+  immediate
+  scheduled
+}
+
+enum PublicationStatus {
+  pending
+  processed
+  failed
+  cancelled
+}
+
+enum AssetStatus {
+  processing
+  ready
+  failed
+  archived
+}
+
+enum AuditEntityType {
+  ContentEntry
+  EntryRevision
+  ReviewTask
+  Asset
+  PublicationSchedule
+}
+
+enum AuditAction {
+  create
+  update
+  submit
+  approve
+  reject
+  schedule
+  publish
+  unpublish
+  upload
+  archive
+}
+
+model Workspace {
+  id            String         @id @default(uuid())
+  name          String
+  code          String         @unique
+  defaultLocale String
+  timezone      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  users         User[]
+  entries       ContentEntry[]
+  assets        Asset[]
+  tags          Tag[]
+  audits        AuditEvent[]
+}
+
+model User {
+  id          String         @id @default(uuid())
+  workspaceId String
+  email       String
+  displayName String
+  role        Role
+  status      UserStatus
+  lastLoginAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id])
+  authored    ContentEntry[] @relation("EntryAuthor")
+  owned       ContentEntry[] @relation("EntryOwner")
+  revisions   EntryRevision[]
+  reviews     ReviewTask[]   @relation("AssignedReviewer")
+  requestedReviews ReviewTask[] @relation("RequestedBy")
+  uploads     Asset[]
+  audits      AuditEvent[]
+
+  @@unique([workspaceId, email])
+}
+
+model ContentType {
+  id          String         @id @default(uuid())
+  code        String         @unique
+  name        String
+  description String?
+  fieldSchema Json
+  isActive    Boolean        @default(true)
+  entries     ContentEntry[]
+}
+
+model ContentEntry {
+  id                    String                @id @default(uuid())
+  workspaceId           String
+  contentTypeId         String
+  currentRevisionId     String?
+  publishedRevisionId   String?
+  authorId              String
+  ownerId               String
+  title                 String
+  slug                  String
+  locale                String
+  status                EntryStatus
+  summary               String
+  seoTitle              String?
+  seoDescription        String?
+  representativeAssetId String?
+  submittedAt           DateTime?
+  approvedAt            DateTime?
+  publishedAt           DateTime?
+  archivedAt            DateTime?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  workspace             Workspace             @relation(fields: [workspaceId], references: [id])
+  contentType           ContentType           @relation(fields: [contentTypeId], references: [id])
+  author                User                  @relation("EntryAuthor", fields: [authorId], references: [id])
+  owner                 User                  @relation("EntryOwner", fields: [ownerId], references: [id])
+  representativeAsset   Asset?                @relation("RepresentativeAsset", fields: [representativeAssetId], references: [id])
+  revisions             EntryRevision[]
+  reviewTasks           ReviewTask[]
+  schedules             PublicationSchedule[]
+  tags                  Tag[]                 @relation("EntryTags")
+  attachedAssets        Asset[]               @relation("AttachedAssets")
+  @@index([workspaceId, status, updatedAt(sort: Desc)])
+  @@index([workspaceId, contentTypeId, locale, updatedAt(sort: Desc)])
+  @@index([workspaceId, authorId, updatedAt(sort: Desc)])
+  @@unique([contentTypeId, locale, slug, archivedAt])
+}
+
+model EntryRevision {
+  id               String       @id @default(uuid())
+  entryId          String
+  versionNumber    Int
+  editorId         String
+  title            String
+  summary          String
+  body             Json
+  seoTitle         String?
+  seoDescription   String?
+  changeNote       String?
+  createdAt        DateTime     @default(now())
+  entry            ContentEntry @relation(fields: [entryId], references: [id])
+  editor           User         @relation(fields: [editorId], references: [id])
+  selectedAssets   Asset[]      @relation("RevisionAssets")
+
+  @@unique([entryId, versionNumber])
+  @@index([entryId, createdAt(sort: Desc)])
+}
+
+model ReviewTask {
+  id                 String       @id @default(uuid())
+  entryId            String
+  requestedById      String
+  assignedReviewerId String?
+  status             ReviewStatus
+  submissionNote     String?
+  decisionNote       String?
+  decidedAt          DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  entry              ContentEntry @relation(fields: [entryId], references: [id])
+  requestedBy        User         @relation("RequestedBy", fields: [requestedById], references: [id])
+  assignedReviewer   User?        @relation("AssignedReviewer", fields: [assignedReviewerId], references: [id])
+
+  @@index([status, createdAt(sort: Desc)])
+}
+
+model PublicationSchedule {
+  id               String            @id @default(uuid())
+  entryId          String
+  targetRevisionId String
+  publishMode      PublishMode
+  scheduledFor     DateTime?
+  executedAt       DateTime?
+  status           PublicationStatus
+  createdById      String
+  failureReason    String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  entry            ContentEntry      @relation(fields: [entryId], references: [id])
+
+  @@index([status, scheduledFor])
+}
+
+model Asset {
+  id                  String          @id @default(uuid())
+  workspaceId         String
+  uploaderId          String
+  fileName            String
+  mimeType            String
+  width               Int
+  height              Int
+  fileSize            Int
+  originalUrl         String
+  thumbnailUrl        String
+  dominantColor       String?
+  altText             String
+  status              AssetStatus
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  workspace           Workspace       @relation(fields: [workspaceId], references: [id])
+  uploader            User            @relation(fields: [uploaderId], references: [id])
+  representativeFor   ContentEntry[]  @relation("RepresentativeAsset")
+  attachedToEntries   ContentEntry[]  @relation("AttachedAssets")
+  revisionSelections  EntryRevision[] @relation("RevisionAssets")
+  tags                Tag[]           @relation("AssetTags")
+
+  @@index([workspaceId, status, createdAt(sort: Desc)])
+}
+
+model Tag {
+  id          String         @id @default(uuid())
+  workspaceId String
+  label       String
+  slug        String
+  createdAt   DateTime       @default(now())
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id])
+  entries     ContentEntry[] @relation("EntryTags")
+  assets      Asset[]        @relation("AssetTags")
+
+  @@unique([workspaceId, label])
+  @@unique([workspaceId, slug])
+}
+
+model AuditEvent {
+  id          String          @id @default(uuid())
+  workspaceId String
+  actorId     String
+  entityType  AuditEntityType
+  entityId    String
+  action      AuditAction
+  metadata    Json?
+  createdAt   DateTime        @default(now())
+  workspace   Workspace       @relation(fields: [workspaceId], references: [id])
+  actor       User            @relation(fields: [actorId], references: [id])
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+}
