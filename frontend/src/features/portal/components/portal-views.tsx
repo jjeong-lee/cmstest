@@ -7,7 +7,7 @@ export function PortalHome({ tree, featured }: { tree: FolderSummary[]; featured
       <section className="portal-sidebar">
         <div className="panel">
           <div className="panel-head">
-            <h3>Folder Tree</h3>
+            <h3>폴더 트리 Folder Tree</h3>
           </div>
           <div className="tree-list">
             {tree.map((folder) => (
@@ -22,7 +22,7 @@ export function PortalHome({ tree, featured }: { tree: FolderSummary[]; featured
 
       <section className="portal-main">
         <article className="hero-panel">
-          <span className="eyebrow">POR-01 Portal Home</span>
+          <span className="eyebrow">POR-01 포털 홈 Portal Home</span>
           <h1 className="page-title">최근 업데이트와 자주 찾는 운영 문서를 카드 레이아웃으로 탐색합니다.</h1>
           <p className="page-copy">대형 히어로 대신 문서 카드와 경로, 수정일 요약이 중심이 되는 에디토리얼 홈 화면입니다.</p>
         </article>
@@ -93,7 +93,7 @@ export function PortalDocumentView({ document }: { document: DocumentDetail }) {
       </article>
       <article className="panel">
         <div className="panel-head">
-          <h3>Attachments</h3>
+          <h3>첨부파일 Attachments</h3>
         </div>
         <div className="stack-list">
           {document.attachments.map((attachment) => (
@@ -115,7 +115,7 @@ export function PortalSearchView({ query, results }: { query: string; results: {
   return (
     <div className="portal-page">
       <section className="hero-panel compact-hero">
-        <span className="eyebrow">POR-03 Search</span>
+        <span className="eyebrow">POR-03 검색 Search</span>
         <h1 className="page-title">"{query}" 검색 결과</h1>
         <p className="page-copy">{results.total}건의 게시 문서를 찾았습니다.</p>
       </section>

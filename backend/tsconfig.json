@@ -16,5 +16,5 @@
     "moduleResolution": "node",
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "test/**/*.ts", "prisma/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "test/**/*.ts", "test/**/*.d.ts", "prisma/**/*.ts"]
 }

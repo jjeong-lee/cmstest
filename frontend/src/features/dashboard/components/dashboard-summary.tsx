@@ -12,7 +12,7 @@ export function DashboardSummaryView({ summary }: { summary: DashboardSummary })
   return (
     <div className="page-shell">
       <section className="hero-panel">
-        <span className="eyebrow">ADM-01 Dashboard</span>
+        <span className="eyebrow">ADM-01 Dashboard 대시보드</span>
         <div className="split-head">
           <div>
             <h1 className="page-title">최근 발행, 검토, 백업, 리스크를 한 화면에서 확인합니다.</h1>
@@ -45,7 +45,7 @@ export function DashboardSummaryView({ summary }: { summary: DashboardSummary })
           <div className="panel-head">
             <h3>최근 발행 문서</h3>
             <Link href="/portal" className="text-link">
-              Portal 미리보기
+              포털 Portal 미리보기
             </Link>
           </div>
           <div className="stack-list">
@@ -68,7 +68,7 @@ export function DashboardSummaryView({ summary }: { summary: DashboardSummary })
           <div className="panel-head">
             <h3>최근 백업</h3>
             <Link href="/operations" className="text-link">
-              Operations
+              운영 Operations
             </Link>
           </div>
           <div className="stack-list">
@@ -90,7 +90,7 @@ export function DashboardSummaryView({ summary }: { summary: DashboardSummary })
           <div className="panel-head">
             <h3>오픈 리스크</h3>
             <Link href="/governance" className="text-link">
-              Governance
+              거버넌스 Governance
             </Link>
           </div>
           <div className="stack-list">
