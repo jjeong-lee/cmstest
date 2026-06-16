@@ -1,298 +1,220 @@
-import { Asset, ContentType, DashboardSummary, EntryDetail, ReviewTask, SessionUser } from "./types";
+import {
+  BackupRun,
+  ChangeRequest,
+  DashboardSummary,
+  Deliverable,
+  DeploymentRelease,
+  DocumentDetail,
+  FolderSummary,
+  HealthStatus,
+  PortalFolderContents,
+  ProjectSchedule,
+  RiskIssue,
+  ScopeItem,
+  SearchResult,
+  SessionUser,
+  SoftwareInventoryItem,
+  StaffAssignment,
+} from "./types";
 
 const now = new Date();
-const iso = (offsetMinutes = 0) => new Date(now.getTime() + offsetMinutes * 60_000).toISOString();
+const iso = (minutes = 0) => new Date(now.getTime() + minutes * 60_000).toISOString();
 
 export const mockSession: SessionUser = {
-  id: "user-editor",
-  email: "editor@example.com",
-  displayName: "Editorial Team",
-  role: "editor",
-  workspaceId: "workspace-1",
-  token: "editor@example.com",
+  id: "user-admin",
+  email: "admin@example.com",
+  displayName: "콘텐츠 관리자",
+  role: "ADMIN",
+  workspaceId: "workspace-cms",
+  token: "admin@example.com",
 };
 
-export const mockContentTypes: ContentType[] = [
-  {
-    id: "type-article",
-    code: "article",
-    name: "Article",
-    description: "뉴스와 운영 공지에 적합한 기본형 콘텐츠",
-    fieldSchema: {
-      bodyHint: "제목, 리드 문단, 인용문 조합",
-      requiredFields: ["title", "slug", "locale", "summary", "body"],
-      ctaLabel: "Read more",
+export const mockRootFolders: FolderSummary[] = [
+  { id: "folder-policy", parentId: null, name: "정책", status: "ACTIVE", sortOrder: 10, hasChildren: true, childDocumentCount: 0 },
+  { id: "folder-notice", parentId: null, name: "공지", status: "ACTIVE", sortOrder: 20, hasChildren: false, childDocumentCount: 1 },
+  { id: "folder-archive", parentId: null, name: "보관함", status: "INACTIVE", sortOrder: 30, hasChildren: false, childDocumentCount: 0 },
+];
+
+export const mockDocument: DocumentDetail = {
+  id: "doc-checklist",
+  folderId: "folder-ops",
+  title: "배포 점검 체크리스트",
+  slug: "배포-점검-체크리스트",
+  summary: "운영 반영 전 확인해야 할 핵심 체크리스트",
+  status: "PUBLISHED",
+  visibilityScope: "PUBLIC",
+  sortOrder: 10,
+  updatedAt: iso(-40),
+  hasUnpublishedChanges: true,
+  markdownBody: "# 배포 점검 체크리스트\n\n- 서비스 상태 확인\n- 로그 확인\n- 백업 이력 점검",
+  renderedBody: "<h1>배포 점검 체크리스트</h1><ul><li>서비스 상태 확인</li><li>로그 확인</li><li>백업 이력 점검</li></ul>",
+  folderPath: ["정책", "운영 가이드"],
+  publishedAt: iso(-120),
+  attachments: [
+    {
+      id: "att-1",
+      originalFilename: "checklist.pdf",
+      contentType: "application/pdf",
+      fileSize: 1280000,
+      status: "ACTIVE",
+      downloadUrl: "/api/v1/portal/attachments/att-1/download",
     },
-    isActive: true,
-  },
-  {
-    id: "type-landing",
-    code: "landing_page",
-    name: "Landing Page",
-    description: "캠페인과 이벤트 페이지",
-    fieldSchema: {
-      bodyHint: "히어로와 가치 제안 중심",
-      requiredFields: ["title", "slug", "locale", "summary", "body"],
-      ctaLabel: "Start now",
+  ],
+  versions: [
+    {
+      id: "ver-2",
+      documentId: "doc-checklist",
+      versionNo: 2,
+      title: "배포 점검 체크리스트",
+      markdownBody: "# 배포 점검 체크리스트",
+      renderedExcerpt: "배포 점검 체크리스트",
+      status: "PUBLISHED",
+      changeSummary: "발행 반영",
+      createdAt: iso(-40),
     },
-    isActive: true,
-  },
-  {
-    id: "type-banner",
-    code: "promo_banner",
-    name: "Promo Banner",
-    description: "짧은 프로모션 메시지",
-    fieldSchema: {
-      bodyHint: "짧은 한두 개의 카피 블록",
-      requiredFields: ["title", "slug", "locale", "summary", "body"],
-      ctaLabel: "Explore",
+    {
+      id: "ver-1",
+      documentId: "doc-checklist",
+      versionNo: 1,
+      title: "배포 점검 초안",
+      markdownBody: "# 배포 점검 초안",
+      renderedExcerpt: "배포 점검 초안",
+      status: "APPROVED",
+      changeSummary: "초안 작성",
+      createdAt: iso(-240),
     },
-    isActive: true,
+  ],
+};
+
+export const mockFolderContents: PortalFolderContents = {
+  folder: { id: "folder-ops", parentId: "folder-policy", name: "운영 가이드", status: "ACTIVE", sortOrder: 10, hasChildren: false, childDocumentCount: 1 },
+  breadcrumb: [
+    { id: "folder-policy", parentId: null, name: "정책", status: "ACTIVE", sortOrder: 10, hasChildren: true, childDocumentCount: 0 },
+    { id: "folder-ops", parentId: "folder-policy", name: "운영 가이드", status: "ACTIVE", sortOrder: 10, hasChildren: false, childDocumentCount: 1 },
+  ],
+  folders: [],
+  documents: [mockDocument],
+};
+
+export const mockSearchResults: SearchResult[] = [
+  {
+    documentId: mockDocument.id,
+    title: mockDocument.title,
+    folderPath: mockDocument.folderPath.join(" / "),
+    summary: "배포 점검 체크리스트 서비스 상태 확인 로그 확인 백업 이력 점검",
+    updatedAt: mockDocument.updatedAt,
+    score: 1,
   },
 ];
 
-export const mockAssets: Asset[] = [
+export const mockBackups: BackupRun[] = [
+  { id: "backup-1", runType: "MANUAL", status: "SUCCEEDED", validationStatus: "PASSED", startedAt: iso(-70), completedAt: iso(-68) },
+  { id: "backup-2", runType: "SCHEDULED", status: "PARTIAL_FAILURE", validationStatus: "FAILED", startedAt: iso(-300), completedAt: iso(-296) },
+];
+
+export const mockDeployments: DeploymentRelease[] = [
   {
-    id: "asset-hero",
-    fileName: "campaign-hero.jpg",
-    altText: "Warm studio hero composition",
-    thumbnailUrl: "https://images.example.com/asset-hero/thumb.jpg",
-    originalUrl: "https://images.example.com/asset-hero/original.jpg",
-    dominantColor: "#d66a3d",
-    status: "ready",
-    width: 1080,
-    height: 1440,
-    references: [{ id: "entry-1", title: "Summer Studio Launch Update", status: "draft" }],
-  },
-  {
-    id: "asset-grid",
-    fileName: "workspace-grid.jpg",
-    altText: "Workspace board with pinned cards",
-    thumbnailUrl: "https://images.example.com/asset-grid/thumb.jpg",
-    originalUrl: "https://images.example.com/asset-grid/original.jpg",
-    dominantColor: "#7b6b58",
-    status: "ready",
-    width: 1080,
-    height: 1600,
-    references: [{ id: "entry-2", title: "Creator Week Landing", status: "scheduled" }],
-  },
-  {
-    id: "asset-processing",
-    fileName: "upcoming-shoot.jpg",
-    altText: "Processing upload item",
-    thumbnailUrl: "https://images.example.com/asset-processing/thumb.jpg",
-    originalUrl: "https://images.example.com/asset-processing/original.jpg",
-    dominantColor: "#bcb0a2",
-    status: "processing",
-    width: 1200,
-    height: 1800,
-    references: [],
+    id: "dep-1",
+    releaseVersion: "2026.06.16-rc1",
+    gitCommitSha: "7f2c1d9",
+    buildNumber: "build-248",
+    environment: "staging",
+    status: "DEPLOYED",
+    deployedAt: iso(-90),
+    approvedBy: "운영 담당자",
   },
 ];
 
-export const mockEntries: EntryDetail[] = [
+export const mockRisks: RiskIssue[] = [
   {
-    id: "entry-1",
-    contentTypeId: "type-article",
-    contentType: mockContentTypes[0],
-    title: "Summer Studio Launch Update",
-    slug: "summer-studio-launch",
-    locale: "ko-KR",
-    status: "draft",
-    summary: "브랜드 스튜디오 오픈 일정과 준비 현황을 정리한 아티클",
-    seoTitle: "Summer Studio Launch",
-    seoDescription: "브랜드 스튜디오 오픈 공지",
-    representativeAssetId: "asset-hero",
-    representativeAsset: mockAssets[0],
-    tags: [
-      { id: "tag-launch", label: "Launch", slug: "launch" },
-      { id: "tag-notice", label: "Notice", slug: "notice" },
-    ],
-    author: { id: "user-editor", displayName: "Editorial Team", email: "editor@example.com" },
-    owner: { id: "user-editor", displayName: "Editorial Team", email: "editor@example.com" },
-    revisions: [
-      {
-        id: "rev-2",
-        entryId: "entry-1",
-        versionNumber: 2,
-        editorId: "user-editor",
-        title: "Summer Studio Launch Update",
-        summary: "브랜드 스튜디오 오픈 일정과 준비 현황을 정리한 아티클",
-        body: [
-          { id: "block-1", type: "heading", content: "새로운 스튜디오 오픈 일정" },
-          { id: "block-2", type: "paragraph", content: "검수 전 최신 진행 상황을 반영했습니다." },
-          { id: "block-3", type: "quote", content: "이미지와 운영 효율을 중심에 둔 설계" },
-        ],
-        changeNote: "본문 확장 및 요약 갱신",
-        createdAt: iso(-90),
-      },
-      {
-        id: "rev-1",
-        entryId: "entry-1",
-        versionNumber: 1,
-        editorId: "user-editor",
-        title: "Summer Studio Launch",
-        summary: "브랜드 스튜디오 오픈을 알리는 메인 아티클",
-        body: [
-          { id: "block-0", type: "heading", content: "새로운 스튜디오 오픈" },
-          { id: "block-9", type: "paragraph", content: "운영팀이 사용할 신규 CMS 런칭과 함께 공개됩니다." },
-        ],
-        changeNote: "초기 초안 생성",
-        createdAt: iso(-160),
-      },
-    ],
-    reviewTasks: [],
-    updatedAt: iso(-90),
-  },
-  {
-    id: "entry-2",
-    contentTypeId: "type-landing",
-    contentType: mockContentTypes[1],
-    title: "Creator Week Landing",
-    slug: "creator-week-landing",
-    locale: "ko-KR",
-    status: "scheduled",
-    summary: "크리에이터 위크 캠페인 랜딩 페이지",
-    representativeAssetId: "asset-grid",
-    representativeAsset: mockAssets[1],
-    tags: [
-      { id: "tag-launch", label: "Launch", slug: "launch" },
-      { id: "tag-design", label: "Design", slug: "design" },
-    ],
-    author: { id: "user-editor", displayName: "Editorial Team", email: "editor@example.com" },
-    owner: { id: "user-publisher", displayName: "Channel Publisher", email: "publisher@example.com" },
-    revisions: [
-      {
-        id: "rev-3",
-        entryId: "entry-2",
-        versionNumber: 1,
-        editorId: "user-editor",
-        title: "Creator Week Landing",
-        summary: "크리에이터 위크 캠페인 랜딩 페이지",
-        body: [
-          { id: "block-4", type: "heading", content: "Creator Week" },
-          { id: "block-5", type: "paragraph", content: "캠페인 일정과 참여 혜택을 정리한 랜딩 페이지입니다." },
-        ],
-        changeNote: "랜딩 초안 생성",
-        createdAt: iso(-220),
-      },
-    ],
-    reviewTasks: [
-      {
-        id: "review-1",
-        entryId: "entry-2",
-        status: "approved",
-        submissionNote: "배너 카피 검토 필요",
-        decisionNote: "캠페인 문구 승인",
-        createdAt: iso(-200),
-        updatedAt: iso(-150),
-      },
-    ],
-    publicationSchedule: {
-      id: "pub-1",
-      publishMode: "scheduled",
-      scheduledFor: iso(45),
-      status: "pending",
-    },
-    updatedAt: iso(-150),
-  },
-  {
-    id: "entry-3",
-    contentTypeId: "type-banner",
-    contentType: mockContentTypes[2],
-    title: "Urgent Service Notice",
-    slug: "urgent-service-notice",
-    locale: "ko-KR",
-    status: "in_review",
-    summary: "공지 배너용 짧은 메시지 초안",
-    tags: [{ id: "tag-notice", label: "Notice", slug: "notice" }],
-    author: { id: "user-editor", displayName: "Editorial Team", email: "editor@example.com" },
-    owner: { id: "user-editor", displayName: "Editorial Team", email: "editor@example.com" },
-    revisions: [
-      {
-        id: "rev-4",
-        entryId: "entry-3",
-        versionNumber: 1,
-        editorId: "user-editor",
-        title: "Urgent Service Notice",
-        summary: "공지 배너용 짧은 메시지 초안",
-        body: [{ id: "block-6", type: "paragraph", content: "서비스 점검 공지가 필요한 상태입니다." }],
-        changeNote: "배너 초안 작성",
-        createdAt: iso(-40),
-      },
-    ],
-    reviewTasks: [
-      {
-        id: "review-2",
-        entryId: "entry-3",
-        status: "open",
-        submissionNote: "오늘 중 검토 필요",
-        createdAt: iso(-20),
-        updatedAt: iso(-20),
-      },
-    ],
-    updatedAt: iso(-20),
-  },
-];
-
-export const mockReviewTasks: ReviewTask[] = [
-  {
-    id: "review-2",
-    entryId: "entry-3",
-    status: "open",
-    submissionNote: "오늘 중 검토 필요",
-    createdAt: iso(-20),
-    updatedAt: iso(-20),
-    entry: mockEntries[2],
-    requestedBy: { displayName: "Editorial Team" },
-  },
-  {
-    id: "review-1",
-    entryId: "entry-2",
-    status: "approved",
-    submissionNote: "배너 카피 검토 필요",
-    decisionNote: "캠페인 문구 승인",
-    createdAt: iso(-200),
-    updatedAt: iso(-150),
-    entry: mockEntries[1],
-    requestedBy: { displayName: "Editorial Team" },
-    assignedReviewer: { displayName: "Quality Reviewer" },
+    id: "risk-1",
+    title: "손상 PDF 업로드 증가",
+    cause: "외부 공급 문서 품질 편차",
+    impact: "변환 실패 증가",
+    owner: "운영 담당자",
+    dueDate: "2026-06-22",
+    status: "MITIGATING",
   },
 ];
 
 export const mockDashboardSummary: DashboardSummary = {
-  kpis: [
-    { key: "reviewQueue", label: "Review Queue", value: 1, trend: "+2 since yesterday" },
-    { key: "scheduled", label: "Scheduled", value: 1, trend: "Next wave in 45m" },
-    { key: "publishedToday", label: "Published Today", value: 0, trend: "Steady cadence" },
-    { key: "failedUploads", label: "Failed Uploads", value: 0, trend: "All clear" },
+  highlights: [
+    { key: "published", label: "최근 게시 문서", value: "1", tone: "accent" },
+    { key: "review", label: "검토 대기", value: "0", tone: "warning" },
+    { key: "backup", label: "최근 백업", value: "SUCCEEDED", tone: "success" },
+    { key: "risk", label: "오픈 리스크", value: "1", tone: "neutral" },
   ],
-  recentEntries: mockEntries.map((entry) => ({
-    id: entry.id,
-    title: entry.title,
-    status: entry.status,
-    updatedAt: entry.updatedAt,
-    authorName: entry.author.displayName,
-    contentType: entry.contentType.code,
-    thumbnailUrl: entry.representativeAsset?.thumbnailUrl,
-  })),
-  upcomingPublications: mockEntries
-    .filter((entry) => entry.publicationSchedule?.scheduledFor)
-    .map((entry) => ({
-      id: entry.id,
-      title: entry.title,
-      scheduledFor: entry.publicationSchedule!.scheduledFor!,
-      status: entry.status,
-    })),
-  recentAssets: mockAssets.map((asset) => ({
-    id: asset.id,
-    fileName: asset.fileName,
-    thumbnailUrl: asset.thumbnailUrl,
-    altText: asset.altText,
-  })),
-  activity: [
-    { id: "activity-1", action: "schedule", actorName: "Channel Publisher", entityLabel: "Creator Week Landing", createdAt: iso(-15) },
-    { id: "activity-2", action: "approve", actorName: "Quality Reviewer", entityLabel: "Creator Week Landing", createdAt: iso(-140) },
-    { id: "activity-3", action: "submit", actorName: "Editorial Team", entityLabel: "Urgent Service Notice", createdAt: iso(-20) },
+  recentPublications: [
+    {
+      id: mockDocument.id,
+      title: mockDocument.title,
+      folderPath: mockDocument.folderPath.join(" / "),
+      updatedAt: mockDocument.updatedAt,
+      status: mockDocument.status,
+    },
+  ],
+  reviewQueue: [],
+  backups: mockBackups,
+  risks: mockRisks,
+  deployments: mockDeployments,
+};
+
+export const mockHealth: HealthStatus = {
+  status: "DEGRADED",
+  checkedAt: iso(-10),
+  components: [
+    { name: "application", status: "UP" },
+    { name: "postgresql", status: "UP" },
+    { name: "object-storage", status: "UP" },
   ],
 };
+
+export const mockSoftwareInventory: SoftwareInventoryItem[] = [
+  {
+    id: "sw-1",
+    componentName: "Next.js",
+    componentType: "LIBRARY",
+    version: "15.0.0",
+    licenseName: "MIT",
+    licenseStatus: "APPROVED",
+    vulnerabilitySummary: "Known issues monitored, no blocking CVE",
+    riskLevel: "LOW",
+  },
+];
+
+export const mockSchedules: ProjectSchedule[] = [
+  {
+    id: "sch-1",
+    name: "1차 운영 전환",
+    phase: "전환",
+    ownerName: "콘텐츠 관리자",
+    plannedStartDate: "2026-06-20",
+    plannedEndDate: "2026-06-24",
+    status: "AT_RISK",
+    mitigationPlan: "백업 검증 자동화 선행",
+  },
+];
+
+export const mockScopeItems: ScopeItem[] = [
+  { id: "scope-1", requirementId: "FR-001", title: "제목/본문 검색", status: "IN_SCOPE" },
+  { id: "scope-2", requirementId: "CR-009", title: "외부 PM 도구 연동", status: "OUT_OF_SCOPE", note: "v2 후보" },
+];
+
+export const mockStaffAssignments: StaffAssignment[] = [
+  { id: "staff-1", role: "ADMIN", assignee: "콘텐츠 관리자", startDate: "2026-06-10", endDate: "2026-07-31", approvalStatus: "APPROVED" },
+];
+
+export const mockDeliverables: Deliverable[] = [
+  { id: "del-1", name: "운영 가이드", version: "v0.9", dueDate: "2026-06-19", approvalStatus: "PENDING", linkedRequirements: ["FR-025", "FR-032"] },
+];
+
+export const mockChangeRequests: ChangeRequest[] = [
+  {
+    id: "cr-1",
+    title: "검색 요약 노출 방식 조정",
+    requester: "포털 운영팀",
+    impactAnalysis: "UI 밀도 증가, API 변경 없음",
+    status: "READY_FOR_APPROVAL",
+    requestedAt: iso(-500),
+  },
+];

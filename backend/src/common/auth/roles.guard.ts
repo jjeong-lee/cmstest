@@ -23,7 +23,7 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException("Unauthenticated request");
     }
 
-    if (user.role === "admin" || requiredRoles.includes(user.role)) {
+    if (user.role === "ADMIN" || requiredRoles.includes(user.role)) {
       return true;
     }
 

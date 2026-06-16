@@ -1,7 +1,5 @@
-import { listReviewTasks } from "@/features/review/api/reviews";
-import { ReviewQueue } from "@/features/review/components/review-queue";
+import { redirect } from "next/navigation";
 
-export default async function ReviewPage() {
-  const reviews = await listReviewTasks();
-  return <ReviewQueue reviews={reviews} />;
+export default function LegacyReviewPage() {
+  redirect("/content");
 }

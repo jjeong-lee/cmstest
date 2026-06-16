@@ -5,8 +5,8 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 
 export const metadata: Metadata = {
-  title: "Northstar CMS",
-  description: "Image-first CMS admin console",
+  title: "Northstar Markdown CMS",
+  description: "마크다운 기반 CMS 관리자 콘솔과 포털",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

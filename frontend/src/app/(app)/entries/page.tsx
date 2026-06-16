@@ -1,7 +1,5 @@
-import { listEntries } from "@/features/entries/api/entries";
-import { EntriesList } from "@/features/entries/components/entries-list";
+import { redirect } from "next/navigation";
 
-export default async function EntriesPage() {
-  const entries = await listEntries();
-  return <EntriesList entries={entries} />;
+export default function LegacyEntriesPage() {
+  redirect("/content");
 }
