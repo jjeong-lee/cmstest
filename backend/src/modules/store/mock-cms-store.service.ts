@@ -1015,7 +1015,7 @@ export class MockCmsStoreService {
     const parent = input.parentId ? this.folders.find((item) => item.id === input.parentId) ?? null : null;
     const folder: Folder = {
       id: randomUUID(),
-      parentId: input.parentId,
+      parentId: input.parentId ?? null,
       name: input.name,
       slug: slugify(input.name),
       status: input.status,
@@ -1154,8 +1154,9 @@ export class MockCmsStoreService {
     const chain: Folder[] = [];
     let current: Folder | undefined = folder;
     while (current) {
-      chain.unshift(current);
-      current = current.parentId ? this.folders.find((item) => item.id === current.parentId) : undefined;
+      const node: Folder = current;
+      chain.unshift(node);
+      current = node.parentId ? this.folders.find((item) => item.id === node.parentId) : undefined;
     }
     return chain;
   }
