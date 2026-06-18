@@ -1,8 +1,8 @@
 "use client";
 
+import React, { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ReactNode } from "react";
 import { useSessionStore } from "@/lib/session-store";
 
 const primaryNav = [
@@ -67,6 +67,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
             <Link href="/portal" className="button-secondary">
               포털 Portal 보기
+            </Link>
+            <Link href="/signup" className="button">
+              회원가입
             </Link>
           </div>
         </header>
