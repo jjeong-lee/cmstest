@@ -4,8 +4,8 @@
   "type": "commonjs",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
-    "build": "nest build",
-    "start": "node dist/main.js",
+    "build": "prisma generate && nest build",
+    "start": "node dist/src/main.js",
     "start:dev": "nest start --watch",
     "test": "vitest run"
   },
