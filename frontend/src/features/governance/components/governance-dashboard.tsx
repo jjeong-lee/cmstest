@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import {
   ChangeRequest,
   Deliverable,
@@ -8,6 +9,28 @@ import {
   SoftwareInventoryItem,
   StaffAssignment,
 } from "@/lib/types";
+
+function RegistryColumn({
+  kicker,
+  title,
+  children,
+}: {
+  kicker: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <article className="panel section-panel">
+      <div className="section-heading">
+        <div>
+          <span className="section-kicker">{kicker}</span>
+          <h3>{title}</h3>
+        </div>
+      </div>
+      <div className="activity-list">{children}</div>
+    </article>
+  );
+}
 
 export function GovernanceDashboard({
   softwareInventory,
@@ -30,107 +53,145 @@ export function GovernanceDashboard({
 }) {
   return (
     <div className="page-shell">
-      <section className="hero-panel compact-hero">
-        <span className="eyebrow">ADM-07 거버넌스 Governance</span>
-        <h1 className="page-title">일정, 범위, 인력, 위험, 산출물, 변경 요청을 하나의 레지스터로 확인합니다.</h1>
+      <section className="panel panel-hero compact-hero">
+        <div className="split-head workspace-header">
+          <div>
+            <span className="eyebrow">Governance registry</span>
+            <h1 className="page-title">일정, 범위, 인력, 위험, 산출물, 변경 요청을 관리자 레지스터 뷰로 정리했습니다.</h1>
+            <p className="page-copy">레퍼런스 대시보드처럼 모듈형 패널을 사용해 운영 데이터군을 주제별로 분리했습니다.</p>
+          </div>
+          <div className="hero-actions compact-actions">
+            <span className="button-ghost">레지스터 3개 영역</span>
+          </div>
+        </div>
       </section>
 
-      <section className="masonry-grid">
-        <article className="panel">
-          <div className="panel-head">
-            <h3>소프트웨어 / 배포</h3>
-          </div>
-          <div className="stack-list">
-            {softwareInventory.map((item) => (
-              <div key={item.id} className="content-card compact">
+      <section className="stats-grid compact-stats">
+        <article className="stat-card tone-accent compact-stat">
+          <span className="stat-label">배포 항목</span>
+          <strong className="stat-value">{deployments.length}</strong>
+        </article>
+        <article className="stat-card tone-success compact-stat">
+          <span className="stat-label">일정 항목</span>
+          <strong className="stat-value">{schedules.length}</strong>
+        </article>
+        <article className="stat-card tone-warning compact-stat">
+          <span className="stat-label">변경 요청</span>
+          <strong className="stat-value">{changeRequests.length}</strong>
+        </article>
+      </section>
+
+      <section className="detail-grid governance-grid">
+        <RegistryColumn kicker="Inventory" title="소프트웨어 / 배포">
+          {softwareInventory.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.componentName}</strong>
-                <div className="meta-row">
-                  <span>{item.version}</span>
-                  <span>{item.licenseStatus}</span>
-                  <span>{item.riskLevel}</span>
-                </div>
+                <p>
+                  {item.version} · {item.licenseStatus}
+                </p>
               </div>
-            ))}
-            {deployments.map((item) => (
-              <div key={item.id} className="content-card compact">
+              <div className="activity-meta align-end">
+                <span>{item.riskLevel}</span>
+                <span>{item.componentType}</span>
+              </div>
+            </div>
+          ))}
+          {deployments.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.releaseVersion}</strong>
-                <div className="meta-row">
-                  <span>{item.environment}</span>
-                  <span>{item.status}</span>
-                </div>
+                <p>
+                  {item.environment} · {item.buildNumber}
+                </p>
               </div>
-            ))}
-          </div>
-        </article>
+              <div className="activity-meta align-end">
+                <span>{item.status}</span>
+                <span>{item.approvedBy ?? "승인자 미기록"}</span>
+              </div>
+            </div>
+          ))}
+        </RegistryColumn>
 
-        <article className="panel">
-          <div className="panel-head">
-            <h3>일정 / 범위 / 인력</h3>
-          </div>
-          <div className="stack-list">
-            {schedules.map((item) => (
-              <div key={item.id} className="content-card compact">
+        <RegistryColumn kicker="Planning" title="일정 / 범위 / 인력">
+          {schedules.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.name}</strong>
-                <span>{item.phase}</span>
-                <div className="meta-row">
-                  <span>{item.ownerName}</span>
-                  <span>{item.status}</span>
-                </div>
+                <p>{item.phase}</p>
               </div>
-            ))}
-            {scopeItems.map((item) => (
-              <div key={item.id} className="content-card compact">
+              <div className="activity-meta align-end">
+                <span>{item.ownerName}</span>
+                <span>{item.status}</span>
+              </div>
+            </div>
+          ))}
+          {scopeItems.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.requirementId}</strong>
-                <span>{item.title}</span>
+                <p>{item.title}</p>
               </div>
-            ))}
-            {staffAssignments.map((item) => (
-              <div key={item.id} className="content-card compact">
+              <div className="activity-meta align-end">
+                <span>{item.status}</span>
+                <span>{item.note ?? "메모 없음"}</span>
+              </div>
+            </div>
+          ))}
+          {staffAssignments.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.assignee}</strong>
-                <div className="meta-row">
-                  <span>{item.role}</span>
-                  <span>{item.approvalStatus}</span>
-                </div>
+                <p>{item.role}</p>
               </div>
-            ))}
-          </div>
-        </article>
+              <div className="activity-meta align-end">
+                <span>{item.approvalStatus}</span>
+                <span>
+                  {item.startDate} → {item.endDate}
+                </span>
+              </div>
+            </div>
+          ))}
+        </RegistryColumn>
 
-        <article className="panel">
-          <div className="panel-head">
-            <h3>위험 / 산출물 / 변경 요청</h3>
-          </div>
-          <div className="stack-list">
-            {risks.map((item) => (
-              <div key={item.id} className="content-card compact">
+        <RegistryColumn kicker="Controls" title="위험 / 산출물 / 변경 요청">
+          {risks.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.title}</strong>
-                <div className="meta-row">
-                  <span>{item.owner}</span>
-                  <span>{item.status}</span>
-                </div>
+                <p>{item.cause}</p>
               </div>
-            ))}
-            {deliverables.map((item) => (
-              <div key={item.id} className="content-card compact">
+              <div className="activity-meta align-end">
+                <span>{item.owner}</span>
+                <span>{item.status}</span>
+              </div>
+            </div>
+          ))}
+          {deliverables.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.name}</strong>
-                <div className="meta-row">
-                  <span>{item.version}</span>
-                  <span>{item.approvalStatus}</span>
-                </div>
+                <p>{item.version}</p>
               </div>
-            ))}
-            {changeRequests.map((item) => (
-              <div key={item.id} className="content-card compact">
+              <div className="activity-meta align-end">
+                <span>{item.approvalStatus}</span>
+                <span>{item.dueDate}</span>
+              </div>
+            </div>
+          ))}
+          {changeRequests.map((item) => (
+            <div key={item.id} className="activity-item static-item">
+              <div>
                 <strong>{item.title}</strong>
-                <span>{item.impactAnalysis || "영향도 분석 필요"}</span>
-                <div className="meta-row">
-                  <span>{item.requester}</span>
-                  <span>{item.status}</span>
-                </div>
+                <p>{item.impactAnalysis || "영향도 분석 필요"}</p>
               </div>
-            ))}
-          </div>
-        </article>
+              <div className="activity-meta align-end">
+                <span>{item.requester}</span>
+                <span>{item.status}</span>
+              </div>
+            </div>
+          ))}
+        </RegistryColumn>
       </section>
     </div>
   );

@@ -12,7 +12,18 @@ function ActionForm({
 }) {
   return (
     <form action={action} method="post">
-      <button className={tone === "primary" ? "button" : tone === "secondary" ? "button-secondary" : tone === "ghost" ? "button-ghost" : "button-danger"} type="submit">
+      <button
+        className={
+          tone === "primary"
+            ? "button action-button"
+            : tone === "secondary"
+              ? "button-secondary action-button"
+              : tone === "ghost"
+                ? "button-ghost action-button"
+                : "button-danger action-button"
+        }
+        type="submit"
+      >
         {label}
       </button>
     </form>
@@ -26,30 +37,55 @@ export function DocumentEditor({ document }: { document: DocumentDetail }) {
     <div className="page-shell">
       <section className="editor-layout">
         <article className="panel editor-surface">
-          <div className="panel-head">
+          <div className="section-heading">
             <div>
-              <span className="eyebrow">ADM-03 문서 편집기</span>
+              <span className="section-kicker">Document editor</span>
               <h1 className="page-title">{document.title}</h1>
+              <p className="page-copy">{document.summary}</p>
             </div>
-            <div className="meta-row">
+            <div className="meta-column">
               <span className="status-badge" data-status={document.status}>
                 {document.status}
               </span>
               <span>{document.folderPath.join(" / ")}</span>
+              <span>수정일 {new Date(document.updatedAt).toLocaleString("ko-KR")}</span>
             </div>
           </div>
+
+          <div className="stats-grid compact-stats editor-overview-grid">
+            <article className="stat-card tone-accent compact-stat">
+              <span className="stat-label">최신 버전</span>
+              <strong className="stat-value small-value">v{latestVersion?.versionNo ?? 0}</strong>
+            </article>
+            <article className="stat-card tone-success compact-stat">
+              <span className="stat-label">첨부파일</span>
+              <strong className="stat-value">{document.attachments.length}</strong>
+            </article>
+            <article className="stat-card tone-warning compact-stat">
+              <span className="stat-label">발행 상태</span>
+              <strong className="stat-value small-value">{document.publishedAt ? "게시됨" : "미게시"}</strong>
+            </article>
+          </div>
+
           <div className="editor-columns">
             <section className="editor-pane">
-              <h3>마크다운 편집 Markdown Editor</h3>
+              <div className="pane-toolbar">
+                <strong>Markdown</strong>
+                <span>원문 편집 영역</span>
+              </div>
               <pre>{document.markdownBody}</pre>
             </section>
             <section className="preview-pane">
-              <h3>미리보기 Preview</h3>
-              <div dangerouslySetInnerHTML={{ __html: document.renderedBody }} />
+              <div className="pane-toolbar">
+                <strong>Preview</strong>
+                <span>렌더링 결과</span>
+              </div>
+              <div className="markdown-body" dangerouslySetInnerHTML={{ __html: document.renderedBody }} />
             </section>
           </div>
-          <div className="tab-strip">
-            <span>첨부파일 Attachments {document.attachments.length}</span>
+
+          <div className="tab-strip info-strip">
+            <span>첨부파일 {document.attachments.length}</span>
             <span>PDF Import {latestVersion?.status ?? "NOT_REQUESTED"}</span>
             <span>검증 Validation OK</span>
             <span>버전 메모 {latestVersion?.changeSummary ?? "변경 메모 없음"}</span>
@@ -57,12 +93,14 @@ export function DocumentEditor({ document }: { document: DocumentDetail }) {
         </article>
 
         <aside className="side-column">
-          <article className="panel">
-            <div className="panel-head">
-              <h3>발행 / 이력 패널</h3>
-              <span className="eyebrow subtle">ADM-04</span>
+          <article className="panel section-panel">
+            <div className="section-heading">
+              <div>
+                <span className="section-kicker">Workflow</span>
+                <h3>문서 액션</h3>
+              </div>
             </div>
-            <div className="cta-column">
+            <div className="action-grid">
               <ActionForm action={`/content/${document.id}/actions/save`} label="저장 Save" tone="secondary" />
               <ActionForm action={`/content/${document.id}/actions/submit-review`} label="검토 요청" tone="secondary" />
               <ActionForm action={`/content/${document.id}/actions/approve`} label="승인 Approve" tone="secondary" />
@@ -72,16 +110,19 @@ export function DocumentEditor({ document }: { document: DocumentDetail }) {
             </div>
           </article>
 
-          <article className="panel">
-            <div className="panel-head">
-              <h3>첨부파일</h3>
+          <article className="panel section-panel">
+            <div className="section-heading">
+              <div>
+                <span className="section-kicker">Assets</span>
+                <h3>첨부파일</h3>
+              </div>
               <Link href="/attachments" className="text-link">
-                첨부 관리 Attachment Manager
+                첨부 관리
               </Link>
             </div>
             <div className="stack-list">
               {document.attachments.map((attachment) => (
-                <div key={attachment.id} className="content-card compact">
+                <div key={attachment.id} className="content-card compact asset-card">
                   <strong>{attachment.originalFilename}</strong>
                   <div className="meta-row">
                     <span>{attachment.contentType}</span>
@@ -92,14 +133,16 @@ export function DocumentEditor({ document }: { document: DocumentDetail }) {
             </div>
           </article>
 
-          <article className="panel">
-            <div className="panel-head">
-              <h3>버전 이력</h3>
-              <span className="eyebrow subtle">버전 패널 Version Drawer</span>
+          <article className="panel section-panel">
+            <div className="section-heading">
+              <div>
+                <span className="section-kicker">History</span>
+                <h3>버전 이력</h3>
+              </div>
             </div>
             <div className="stack-list">
               {document.versions.map((version) => (
-                <div key={version.id} className="content-card compact">
+                <div key={version.id} className="content-card compact history-card">
                   <div className="meta-row">
                     <strong>v{version.versionNo}</strong>
                     <span className="status-badge" data-status={version.status}>
