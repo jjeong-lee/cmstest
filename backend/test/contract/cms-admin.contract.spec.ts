@@ -6,7 +6,7 @@ import { AppModule } from "../../src/app.module";
 
 describe("CMS API contract smoke", () => {
   let app: INestApplication;
-  let adminToken = "admin@example.com";
+  let adminToken = "";
   let reviewerToken = "reviewer@example.com";
   let registeredUserToken = "";
   let folderId = "";
@@ -26,24 +26,22 @@ describe("CMS API contract smoke", () => {
     await app?.close();
   });
 
-  it("logs in admin and reviewer demo users", async () => {
-    const adminResponse = await request(app.getHttpServer())
+  it("logs in with seeded admin credentials and rejects passwordless email login", async () => {
+    await request(app.getHttpServer())
       .post("/api/v1/auth/login")
       .send({ email: "admin@example.com" })
-      .expect(200);
+      .expect(400);
 
-    const reviewerResponse = await request(app.getHttpServer())
+    const adminResponse = await request(app.getHttpServer())
       .post("/api/v1/auth/login")
-      .send({ email: "reviewer@example.com" })
+      .send({ id: "admin", password: "admin1234" })
       .expect(200);
 
     expect(adminResponse.body.user.role).toBe("ADMIN");
-    expect(reviewerResponse.body.user.role).toBe("REVIEWER");
     adminToken = adminResponse.body.token;
-    reviewerToken = reviewerResponse.body.token;
   });
 
-  it("registers a user account and logs in with the seeded admin credentials", async () => {
+  it("registers a user account and logs in with either id or email plus password", async () => {
     const signUpResponse = await request(app.getHttpServer())
       .post("/api/v1/auth/signup")
       .send({
@@ -74,6 +72,14 @@ describe("CMS API contract smoke", () => {
     expect(userLoginResponse.body.user.email).toBe("writer01@example.com");
     expect(userLoginResponse.body.user.role).toBe("USER");
     registeredUserToken = userLoginResponse.body.token;
+
+    const userEmailLoginResponse = await request(app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({ email: "writer01@example.com", password: "writerpass1234" })
+      .expect(200);
+
+    expect(userEmailLoginResponse.body.user.email).toBe("writer01@example.com");
+    expect(userEmailLoginResponse.body.user.role).toBe("USER");
   });
 
   it("rejects protected admin resources for signed-in user accounts without admin role", async () => {

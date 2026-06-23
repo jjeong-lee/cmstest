@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException, Inject } from "@nestjs/common";
+import { BadRequestException, Injectable, Inject } from "@nestjs/common";
 import { MockCmsStoreService } from "../store/mock-cms-store.service";
 
 type LoginInput = {
@@ -19,26 +19,14 @@ export class AuthService {
   constructor(@Inject(MockCmsStoreService) private readonly store: MockCmsStoreService) {}
 
   login(input: LoginInput) {
-    if (input.id && input.password) {
-      const session = this.store.authenticateUser(input.id, input.password);
-      return {
-        token: session.token,
-        user: session,
-        workspace: this.store.getWorkspace(),
-      };
+    const identifier = input.id?.trim() || input.email?.trim();
+    const password = input.password?.trim();
+
+    if (!identifier || !password) {
+      throw new BadRequestException("Login requires an id or email plus password");
     }
 
-    const email = input.email?.trim();
-    if (!email) {
-      throw new BadRequestException("Login requires either id/password or email");
-    }
-
-    const user = this.store.findUserByEmail(email);
-    if (!user || user.status !== "ACTIVE") {
-      throw new UnauthorizedException("Invalid credentials");
-    }
-
-    const session = this.store.createSession(email);
+    const session = this.store.authenticateUser(identifier, password);
     return {
       token: session.token,
       user: session,
