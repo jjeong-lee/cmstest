@@ -100,6 +100,7 @@ export class MockCmsStoreService {
     const now = new Date().toISOString();
     this.users.push(
       this.createUser("user-admin", "admin@example.com", "콘텐츠 관리자", "ADMIN", now),
+      this.createUser("user-auth-admin", "basic@example.com", "콘텐츠 관리자", "ADMIN", now),
       this.createUser("user-reviewer", "reviewer@example.com", "검수 담당자", "REVIEWER", now),
       this.createUser("user-operator", "operator@example.com", "운영 담당자", "OPERATOR", now),
       this.createUser("user-portal", "user@example.com", "포털 사용자", "USER", now),
@@ -368,8 +369,9 @@ export class MockCmsStoreService {
   registerUser(input: RegisterUserInput): SessionUser {
     const username = input.id.trim();
     const email = input.email.trim().toLowerCase();
+    const password = input.password.trim();
 
-    if (!username || !input.password.trim() || !email) {
+    if (!username || !password || !email) {
       throw new BadRequestException("id, password, and email are required");
     }
 
@@ -381,15 +383,23 @@ export class MockCmsStoreService {
       throw new ConflictException(`User email ${email} already exists`);
     }
 
+    if (this.users.some((item) => item.email === email)) {
+      throw new ConflictException(`User email ${email} already exists`);
+    }
+
     const now = new Date().toISOString();
-    const user = this.createAuthUser(username, email, "USER", input.password, now);
-    this.authUsers.push(user);
-    return this.createAuthSession(user);
+    const authUser = this.createAuthUser(username, email, "USER", password, now);
+    const profile = this.createUser(`user-auth-${username}`, email, username, "USER", now);
+    this.authUsers.push(authUser);
+    this.users.push(profile);
+    return this.createAuthSession(authUser);
   }
 
-  authenticateUser(id: string, password: string): SessionUser {
-    const username = id.trim();
-    const authUser = this.authUsers.find((item) => item.username === username);
+  authenticateUser(identifier: string, password: string): SessionUser {
+    const normalizedIdentifier = identifier.trim().toLowerCase();
+    const authUser = this.authUsers.find(
+      (item) => item.username.toLowerCase() === normalizedIdentifier || item.email.toLowerCase() === normalizedIdentifier,
+    );
     if (!authUser || authUser.passwordHash !== this.hashPassword(password)) {
       throw new BadRequestException("Invalid credentials");
     }
@@ -1066,14 +1076,17 @@ export class MockCmsStoreService {
 
   private createAuthSession(user: AuthUserAccount): SessionUser {
     const token = `session-${randomUUID()}`;
-    const session: SessionUser = {
-      id: user.id,
-      workspaceId: this.workspace.id,
-      email: user.email,
-      displayName: user.username,
-      role: user.role,
-      token,
-    };
+    const matchedProfile = this.findUserByEmail(user.email);
+    const session = matchedProfile
+      ? { ...this.toSession(matchedProfile), token }
+      : {
+          id: user.id,
+          workspaceId: this.workspace.id,
+          email: user.email,
+          displayName: user.username,
+          role: user.role,
+          token,
+        };
     this.activeSessions.set(token, session);
     return session;
   }
