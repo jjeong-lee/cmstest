@@ -1,4 +1,5 @@
 export type Role = "ADMIN" | "REVIEWER" | "OPERATOR" | "USER";
+export type AuthRole = "ADMIN" | "USER";
 export type UserStatus = "ACTIVE" | "INVITED" | "DISABLED";
 export type FolderStatus = "ACTIVE" | "INACTIVE" | "DELETED";
 export type DocumentStatus = "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "UNPUBLISHED" | "DELETED";
@@ -41,6 +42,17 @@ export interface User {
   displayName: string;
   role: Role;
   status: UserStatus;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string;
+}
+
+export interface AuthUserAccount {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash: string;
+  role: AuthRole;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string;

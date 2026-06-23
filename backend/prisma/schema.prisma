@@ -20,6 +20,11 @@ enum UserStatus {
   disabled
 }
 
+enum AuthUserRole {
+  admin
+  user
+}
+
 enum EntryStatus {
   draft
   in_review
@@ -112,6 +117,18 @@ model User {
   audits      AuditEvent[]
 
   @@unique([workspaceId, email])
+}
+
+model AuthUser {
+  id           String       @id @default(uuid())
+  username     String       @unique
+  passwordHash String
+  email        String       @unique
+  role         AuthUserRole @default(user)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@map("user")
 }
 
 model ContentType {

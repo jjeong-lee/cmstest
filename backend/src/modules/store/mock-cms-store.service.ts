@@ -29,6 +29,7 @@ import {
   User,
   VisibilityScope,
   Workspace,
+  AuthUserAccount,
 } from "./cms.types";
 
 type CreateFolderInput = {
@@ -60,6 +61,12 @@ type CreateAttachmentInput = {
   linkRole?: Attachment["linkRole"];
 };
 
+type RegisterUserInput = {
+  id: string;
+  password: string;
+  email: string;
+};
+
 @Injectable()
 export class MockCmsStoreService {
   private readonly workspace: Workspace = {
@@ -71,6 +78,8 @@ export class MockCmsStoreService {
   };
 
   private readonly users: User[] = [];
+  private readonly authUsers: AuthUserAccount[] = [];
+  private readonly activeSessions = new Map<string, SessionUser>();
   private readonly folders: Folder[] = [];
   private readonly documents: DocumentRecord[] = [];
   private readonly versions: DocumentVersion[] = [];
@@ -95,6 +104,7 @@ export class MockCmsStoreService {
       this.createUser("user-operator", "operator@example.com", "운영 담당자", "OPERATOR", now),
       this.createUser("user-portal", "user@example.com", "포털 사용자", "USER", now),
     );
+    this.authUsers.push(this.createAuthUser("admin", "basic@example.com", "ADMIN", "admin1234", now));
 
     const policy = this.seedFolder({ name: "정책", status: "ACTIVE", sortOrder: 10 }, "user-admin");
     const operations = this.seedFolder({ parentId: policy.id, name: "운영 가이드", status: "ACTIVE", sortOrder: 10 }, "user-admin");
@@ -355,6 +365,40 @@ export class MockCmsStoreService {
     return this.users.find((item) => item.email === email);
   }
 
+  registerUser(input: RegisterUserInput): SessionUser {
+    const username = input.id.trim();
+    const email = input.email.trim().toLowerCase();
+
+    if (!username || !input.password.trim() || !email) {
+      throw new BadRequestException("id, password, and email are required");
+    }
+
+    if (this.authUsers.some((item) => item.username === username)) {
+      throw new ConflictException(`User id ${username} already exists`);
+    }
+
+    if (this.authUsers.some((item) => item.email === email)) {
+      throw new ConflictException(`User email ${email} already exists`);
+    }
+
+    const now = new Date().toISOString();
+    const user = this.createAuthUser(username, email, "USER", input.password, now);
+    this.authUsers.push(user);
+    return this.createAuthSession(user);
+  }
+
+  authenticateUser(id: string, password: string): SessionUser {
+    const username = id.trim();
+    const authUser = this.authUsers.find((item) => item.username === username);
+    if (!authUser || authUser.passwordHash !== this.hashPassword(password)) {
+      throw new BadRequestException("Invalid credentials");
+    }
+
+    authUser.lastLoginAt = new Date().toISOString();
+    authUser.updatedAt = authUser.lastLoginAt;
+    return this.createAuthSession(authUser);
+  }
+
   createSession(email: string): SessionUser {
     const user = this.findUserByEmail(email);
     if (!user) {
@@ -365,6 +409,11 @@ export class MockCmsStoreService {
   }
 
   getSessionFromToken(token: string): SessionUser | undefined {
+    const authSession = this.activeSessions.get(token);
+    if (authSession) {
+      return authSession;
+    }
+
     const user = this.findUserByEmail(token);
     if (!user || user.status !== "ACTIVE") {
       return undefined;
@@ -994,6 +1043,43 @@ export class MockCmsStoreService {
       updatedAt: now,
       lastLoginAt: now,
     };
+  }
+
+  private createAuthUser(
+    username: string,
+    email: string,
+    role: "ADMIN" | "USER",
+    password: string,
+    now: string,
+  ): AuthUserAccount {
+    return {
+      id: `auth-${username}`,
+      username,
+      email,
+      passwordHash: this.hashPassword(password),
+      role,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: now,
+    };
+  }
+
+  private createAuthSession(user: AuthUserAccount): SessionUser {
+    const token = `session-${randomUUID()}`;
+    const session: SessionUser = {
+      id: user.id,
+      workspaceId: this.workspace.id,
+      email: user.email,
+      displayName: user.username,
+      role: user.role,
+      token,
+    };
+    this.activeSessions.set(token, session);
+    return session;
+  }
+
+  private hashPassword(password: string): string {
+    return createHash("sha256").update(password).digest("hex");
   }
 
   private toSession(user: User): SessionUser {

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards, Inject } from "@nestjs/common";
 import { ok } from "../../common/api/api-envelope";
 import { CurrentUser } from "../../common/auth/current-user.decorator";
 import { Roles } from "../../common/auth/roles.decorator";
@@ -10,7 +10,7 @@ import { FoldersService } from "./folders.service";
 @Controller("admin/folders")
 @UseGuards(SessionGuard, RolesGuard)
 export class FoldersController {
-  constructor(private readonly foldersService: FoldersService) {}
+  constructor(@Inject(FoldersService) private readonly foldersService: FoldersService) {}
 
   @Get()
   @Roles("ADMIN", "REVIEWER", "OPERATOR")

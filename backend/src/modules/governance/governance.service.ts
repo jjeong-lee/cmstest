@@ -1,10 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ChangeRequest, ProjectSchedule, SoftwareInventoryItem } from "../store/cms.types";
 import { MockCmsStoreService } from "../store/mock-cms-store.service";
 
 @Injectable()
 export class GovernanceService {
-  constructor(private readonly store: MockCmsStoreService) {}
+  constructor(@Inject(MockCmsStoreService) private readonly store: MockCmsStoreService) {}
 
   listSoftwareInventory() {
     return this.store.listSoftwareInventory();

@@ -8,6 +8,7 @@ describe("CMS API contract smoke", () => {
   let app: INestApplication;
   let adminToken = "admin@example.com";
   let reviewerToken = "reviewer@example.com";
+  let registeredUserToken = "";
   let folderId = "";
   let documentId = "";
 
@@ -40,6 +41,46 @@ describe("CMS API contract smoke", () => {
     expect(reviewerResponse.body.user.role).toBe("REVIEWER");
     adminToken = adminResponse.body.token;
     reviewerToken = reviewerResponse.body.token;
+  });
+
+  it("registers a user account and logs in with the seeded admin credentials", async () => {
+    const signUpResponse = await request(app.getHttpServer())
+      .post("/api/v1/auth/signup")
+      .send({
+        id: "writer01",
+        password: "writerpass1234",
+        passwordConfirm: "writerpass1234",
+        email: "writer01@example.com",
+      })
+      .expect(201);
+
+    expect(signUpResponse.body.user.email).toBe("writer01@example.com");
+    expect(signUpResponse.body.user.role).toBe("USER");
+
+    const adminLoginResponse = await request(app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({ id: "admin", password: "admin1234" })
+      .expect(200);
+
+    expect(adminLoginResponse.body.user.email).toBe("basic@example.com");
+    expect(adminLoginResponse.body.user.role).toBe("ADMIN");
+    adminToken = adminLoginResponse.body.token;
+
+    const userLoginResponse = await request(app.getHttpServer())
+      .post("/api/v1/auth/login")
+      .send({ id: "writer01", password: "writerpass1234" })
+      .expect(200);
+
+    expect(userLoginResponse.body.user.email).toBe("writer01@example.com");
+    expect(userLoginResponse.body.user.role).toBe("USER");
+    registeredUserToken = userLoginResponse.body.token;
+  });
+
+  it("rejects protected admin resources for signed-in user accounts without admin role", async () => {
+    await request(app.getHttpServer())
+      .get("/api/v1/admin/dashboard")
+      .set("Authorization", `Bearer ${registeredUserToken}`)
+      .expect(403);
   });
 
   it("returns dashboard summary for authenticated admin users", async () => {

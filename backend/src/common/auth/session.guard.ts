@@ -1,9 +1,9 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Inject } from "@nestjs/common";
 import { MockCmsStoreService } from "../../modules/store/mock-cms-store.service";
 
 @Injectable()
 export class SessionGuard implements CanActivate {
-  constructor(private readonly store: MockCmsStoreService) {}
+  constructor(@Inject(MockCmsStoreService) private readonly store: MockCmsStoreService) {}
 
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<{

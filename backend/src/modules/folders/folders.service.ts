@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { MockCmsStoreService } from "../store/mock-cms-store.service";
 
 @Injectable()
 export class FoldersService {
-  constructor(private readonly store: MockCmsStoreService) {}
+  constructor(@Inject(MockCmsStoreService) private readonly store: MockCmsStoreService) {}
 
   listRootFolders() {
     return this.store.listRootFolders();
