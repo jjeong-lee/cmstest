@@ -223,6 +223,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
               Live portal
             </Link>
+            <Link href="/login" className="button topbar-button">
+              로그인
+            </Link>
           </div>
         </header>
         <div className="page-frame">{children}</div>

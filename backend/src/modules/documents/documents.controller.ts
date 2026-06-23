@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Redirect, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Redirect, UseGuards, Inject } from "@nestjs/common";
 import { ok } from "../../common/api/api-envelope";
 import { CurrentUser } from "../../common/auth/current-user.decorator";
 import { Roles } from "../../common/auth/roles.decorator";
@@ -10,7 +10,7 @@ import { DocumentsService } from "./documents.service";
 @Controller("admin")
 @UseGuards(SessionGuard, RolesGuard)
 export class DocumentsController {
-  constructor(private readonly documentsService: DocumentsService) {}
+  constructor(@Inject(DocumentsService) private readonly documentsService: DocumentsService) {}
 
   @Post("documents")
   @Roles("ADMIN")

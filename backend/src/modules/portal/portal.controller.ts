@@ -1,10 +1,10 @@
-import { Controller, Get, Param, Query, Redirect } from "@nestjs/common";
+import { Controller, Get, Param, Query, Redirect, Inject } from "@nestjs/common";
 import { ok } from "../../common/api/api-envelope";
 import { PortalService } from "./portal.service";
 
 @Controller("portal")
 export class PortalController {
-  constructor(private readonly portalService: PortalService) {}
+  constructor(@Inject(PortalService) private readonly portalService: PortalService) {}
 
   @Get("tree")
   getTree() {

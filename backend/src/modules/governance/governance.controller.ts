@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, UseGuards, Inject } from "@nestjs/common";
 import { ok } from "../../common/api/api-envelope";
 import { CurrentUser } from "../../common/auth/current-user.decorator";
 import { Roles } from "../../common/auth/roles.decorator";
@@ -10,7 +10,7 @@ import { GovernanceService } from "./governance.service";
 @Controller("admin")
 @UseGuards(SessionGuard, RolesGuard)
 export class GovernanceController {
-  constructor(private readonly governanceService: GovernanceService) {}
+  constructor(@Inject(GovernanceService) private readonly governanceService: GovernanceService) {}
 
   @Get("software-inventory")
   @Roles("ADMIN", "OPERATOR")

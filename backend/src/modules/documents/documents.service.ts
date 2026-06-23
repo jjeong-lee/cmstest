@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { MockCmsStoreService } from "../store/mock-cms-store.service";
 
 @Injectable()
 export class DocumentsService {
-  constructor(private readonly store: MockCmsStoreService) {}
+  constructor(@Inject(MockCmsStoreService) private readonly store: MockCmsStoreService) {}
 
   createDocument(payload: { folderId: string; title: string; markdownBody: string; visibilityScope?: "PUBLIC" | "INTERNAL"; summary?: string }, actorId: string) {
     return this.store.createDocument(payload, actorId);

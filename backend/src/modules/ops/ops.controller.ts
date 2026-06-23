@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Param, Post, UseGuards } from "@nestjs/common";
+import { Controller, Get, HttpCode, Param, Post, UseGuards, Inject } from "@nestjs/common";
 import { ok } from "../../common/api/api-envelope";
 import { CurrentUser } from "../../common/auth/current-user.decorator";
 import { Roles } from "../../common/auth/roles.decorator";
@@ -9,7 +9,7 @@ import { OpsService } from "./ops.service";
 
 @Controller()
 export class OpsController {
-  constructor(private readonly opsService: OpsService) {}
+  constructor(@Inject(OpsService) private readonly opsService: OpsService) {}
 
   @Get("ops/health")
   getHealth() {

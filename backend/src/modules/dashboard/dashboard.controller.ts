@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, UseGuards, Inject } from "@nestjs/common";
 import { ok } from "../../common/api/api-envelope";
 import { Roles } from "../../common/auth/roles.decorator";
 import { RolesGuard } from "../../common/auth/roles.guard";
@@ -8,7 +8,7 @@ import { DashboardService } from "./dashboard.service";
 @Controller("admin/dashboard")
 @UseGuards(SessionGuard, RolesGuard)
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(@Inject(DashboardService) private readonly dashboardService: DashboardService) {}
 
   @Get()
   @Roles("ADMIN", "OPERATOR", "REVIEWER")

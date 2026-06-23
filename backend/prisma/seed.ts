@@ -1,6 +1,8 @@
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role, AuthUserRole } from "@prisma/client";
+import { createHash } from "node:crypto";
 
 const prisma = new PrismaClient();
+const hashPassword = (password: string) => createHash("sha256").update(password).digest("hex");
 
 async function main() {
   const workspace = await prisma.workspace.upsert({
@@ -34,6 +36,21 @@ async function main() {
       },
     });
   }
+
+  await prisma.authUser.upsert({
+    where: { username: "admin" },
+    update: {
+      email: "basic@example.com",
+      passwordHash: hashPassword("admin1234"),
+      role: AuthUserRole.admin,
+    },
+    create: {
+      username: "admin",
+      email: "basic@example.com",
+      passwordHash: hashPassword("admin1234"),
+      role: AuthUserRole.admin,
+    },
+  });
 
   const contentTypes = [
     {
